@@ -4,14 +4,14 @@ export const createItem = async (
   id_campanha: string,
   nome: string,
   descricao?: string,
-  raride?: string,
+  raridade?: string,
 ) => {
   const item = await prisma.item.create({
     data: {
       id_campanha,
       nome,
       ...(descricao && { descricao }),
-      ...(raride && { raride }),
+      ...(raridade && { raridade }),
     },
   });
   return item;
