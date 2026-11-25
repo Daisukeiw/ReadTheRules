@@ -4,8 +4,8 @@ import { createItem, deleteItem, getItemById, getItemByName, listarItem, updateI
 export const createItemController = async (req: Request, res: Response) => {
     try {
         const { id_campanha } = req.params as { id_campanha: string };
-        const { nome, descricao, raride } = req.body;
-        const item = await createItem(id_campanha, nome, descricao, raride);
+        const { nome, descricao, raridade } = req.body;
+        const item = await createItem(id_campanha, nome, descricao, raridade);
         res.status(201).json({ item });
     } catch (error:any) {
         res.status(400).json({ message: error.message });

@@ -10,11 +10,23 @@ cd docker && docker compose up -d && cd ..
 
 # 2. Backend
 cd apps/backend
-cp .env.example .env        # preencha JWT_SECRET e ANTHROPIC_API_KEY
+cp .env.example .env        # preencha JWT_SECRET e IA_API_KEY (grátis, Gemini) ou ANTHROPIC_API_KEY
 npm install
 npm run db:migrate          # aplica as migrations e gera o Prisma Client
 npm run dev                 # http://localhost:3000
 ```
+
+## Como rodar o front-end
+
+```bash
+cd apps/frontend
+npm install
+npm run dev                 # http://localhost:5173 (usa a API em http://localhost:3000; mude com VITE_API_URL)
+```
+
+## IA gratuita
+
+Com `IA_API_KEY` no `.env` do backend, o assistente usa qualquer API compatível com OpenAI. O padrão é o **Google Gemini** (`gemini-2.5-flash`), que tem plano gratuito e contexto de 1M tokens: crie a chave em https://aistudio.google.com/apikey. Para trocar (Groq, OpenRouter, Ollama local), mude `IA_BASE_URL` e `IA_MODEL`. Sem `IA_API_KEY`, usa o Claude (`ANTHROPIC_API_KEY`).
 
 ## Rotas principais
 
