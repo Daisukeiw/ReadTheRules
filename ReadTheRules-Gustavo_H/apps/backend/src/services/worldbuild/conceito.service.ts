@@ -31,9 +31,9 @@ export const getConceitoById = async (id_conceito: string) => {
     return conceito;
 }; 
 
-export const getConceitoByName = async (nome: string) => {
+export const getConceitoByName = async (id_campanha: string, nome: string) => {
     const conceito = await prisma.conceito.findFirst({
-        where: { nome },
+        where: { id_campanha, nome },
     });
     return conceito;
 };

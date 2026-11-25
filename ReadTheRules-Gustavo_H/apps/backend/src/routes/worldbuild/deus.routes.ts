@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../../middlewares/authenticate.js';
 import { createDeusController, deleteDeusController, getDeusByIdController, getDeusByNameController, listDeusController, updateDeusController } from '../../controllers/worldbuild/deus.controller.js';
 
-const router = Router();
+const router = Router({ mergeParams: true });
 router.use(authenticate);
 
 router.post('/', createDeusController);

@@ -31,9 +31,9 @@ export const getDeusById = async (id_deus: string) => {
   return deus;
 };
 
-export const getDeusByName = async (nome: string) => {
+export const getDeusByName = async (id_campanha: string, nome: string) => {
   const deus = await prisma.deus.findFirst({
-    where: { nome },
+    where: { id_campanha, nome },
   });
   return deus;
 };

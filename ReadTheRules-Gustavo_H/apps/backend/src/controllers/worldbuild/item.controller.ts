@@ -35,7 +35,7 @@ export const getItemByIdController = async (req: Request, res: Response) => {
 export const getItemByNameController = async (req: Request, res: Response) => {
     try {
         const { nome } = req.params as { nome: string };
-        const item = await getItemByName(nome);
+        const item = await getItemByName(req.params.id_campanha as string, nome);
         res.status(200).json({ item });
     } catch (error:any) {
         res.status(400).json({ message: error.message });
