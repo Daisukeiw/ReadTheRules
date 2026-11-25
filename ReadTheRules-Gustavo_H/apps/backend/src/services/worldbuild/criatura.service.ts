@@ -31,9 +31,9 @@ export const getCriaturaById = async (id_criatura: string) => {
     return criatura;
 };
 
-export const getCriaturaByName = async (nome: string) => {
+export const getCriaturaByName = async (id_campanha: string, nome: string) => {
     const criatura = await prisma.criatura.findFirst({
-        where: { nome },
+        where: { id_campanha, nome },
     });
     return criatura;
 };

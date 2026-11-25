@@ -8,7 +8,7 @@ router.use(authenticate);
 router.post("/", createPersonagemController);
 router.get("/", listPersonagensController);
 router.get("/:id_personagem", getPersonagemByIdController);
-router.get("/:id_personagem", getPersonagemByNameController);
+router.get("/nome/:nome", getPersonagemByNameController);
 router.patch("/:id_personagem", updatePersonagemController);
 router.delete("/:id_personagem", deletePersonagemController);
 

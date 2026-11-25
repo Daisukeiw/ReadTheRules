@@ -42,7 +42,7 @@ export const getLocalByIdController = async (req: Request, res: Response) => {
 export const getLocalByNameController = async (req: Request, res: Response) => {
   try {
     const { nome } = req.params as { nome: string };
-    const local = await getLocalByName(nome);
+    const local = await getLocalByName(req.params.id_campanha as string, nome);
     res.status(200).json({ local });
   } catch (error: any) {
     res.status(400).json({ message: error.message });

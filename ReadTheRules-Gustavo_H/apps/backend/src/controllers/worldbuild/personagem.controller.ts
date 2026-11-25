@@ -34,8 +34,8 @@ export const getPersonagemByIdController = async (req: Request, res: Response) =
 
 export const getPersonagemByNameController = async (req: Request, res: Response) => {
     try {
-        const { id_personagem } = req.params as { id_personagem: string };
-        const personagem = await getPersonagemByName(id_personagem);
+        const { nome } = req.params as { nome: string };
+        const personagem = await getPersonagemByName(req.params.id_campanha as string, nome);
         res.status(200).json({ personagem });
     } catch (error:any) {
         res.status(400).json({ message: error.message });

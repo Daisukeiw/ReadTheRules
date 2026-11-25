@@ -35,7 +35,7 @@ export const getAliancaByIdController = async (req: Request, res: Response) => {
 export const getAliancaByNameController = async (req: Request, res: Response) => {
     try {
         const { nome } = req.params as { nome: string };
-        const alianca = await getAliancaByName(nome);
+        const alianca = await getAliancaByName(req.params.id_campanha as string, nome);
         res.status(200).json({ alianca });
     } catch (error: any) {
         res.status(400).json({ message: error.message });

@@ -35,7 +35,7 @@ export const getCriaturaByIdController = async (req: Request, res: Response) => 
 export const getCriaturaByNameController = async (req: Request, res: Response) => {
     try {
         const { nome } = req.params as { nome: string };
-        const criatura = await getCriaturaByName(nome);
+        const criatura = await getCriaturaByName(req.params.id_campanha as string, nome);
         res.status(200).json({ criatura });
     } catch (error: any) {
         res.status(400).json({ message: error.message });

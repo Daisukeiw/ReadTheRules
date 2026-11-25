@@ -31,9 +31,9 @@ export const getAliancaById = async (id_alianca: string) => {
     return alianca;
 };
 
-export const getAliancaByName = async (nome: string) => {
+export const getAliancaByName = async (id_campanha: string, nome: string) => {
     const alianca = await prisma.alianca.findFirst({
-        where: { nome },
+        where: { id_campanha, nome },
     });
     return alianca;
 };

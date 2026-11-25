@@ -35,7 +35,7 @@ export const getConceitoByIdController = async (req: Request, res: Response) => 
 export const getConceitoByNameController = async (req: Request, res: Response) => {
     try {
         const { nome } = req.params as { nome: string };
-        const conceito = await getConceitoByName(nome);
+        const conceito = await getConceitoByName(req.params.id_campanha as string, nome);
         res.status(200).json({ conceito });
     } catch (error: any) {
         res.status(400).json({ message: error.message });

@@ -42,7 +42,7 @@ export const getDeusByIdController = async (req: Request, res: Response) => {
 export const getDeusByNameController = async (req: Request, res: Response) => {
   try {
     const { nome } = req.params as { nome: string };
-    const deus = await getDeusByName(nome);
+    const deus = await getDeusByName(req.params.id_campanha as string, nome);
     res.status(200).json({ deus });
   } catch (error: any) {
     res.status(400).json({ message: error.message });

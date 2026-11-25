@@ -31,9 +31,9 @@ export const getLocalById = async (id_local: string) => {
   return local;
 };
 
-export const getLocalByName = async (nome: string) => {
+export const getLocalByName = async (id_campanha: string, nome: string) => {
   const local = await prisma.local.findFirst({
-    where: { nome },
+    where: { id_campanha, nome },
   });
   return local;
 };
