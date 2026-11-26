@@ -17,7 +17,7 @@ import calendarioRsvpRouter from "./routes/calendario/calendariorsvp.routes.js";
 import documentoRouter from "./routes/documento.routes.js";
 import iaRouter from "./routes/ia.routes.js";
 import { authenticate } from "./middlewares/authenticate.js";
-import { isMembro } from "./middlewares/campanha.js";
+import { isMembro, itemDaCampanha } from "./middlewares/campanha.js";
 import { buscarController } from "./controllers/ia.controller.js";
 
 
@@ -32,6 +32,7 @@ app.get("/health", (_req, res) => { res.json({ ok: true }); });
 app.use("/auth", authRouter);
 // Tudo dentro de uma campanha exige ser membro ativo dela.
 app.use("/campanhas/:id_campanha", authenticate, isMembro);
+app.use("/campanhas/:id_campanha/:recurso/:id", itemDaCampanha);
 app.use("/campanhas", campanhaRouter);
 app.use("/membros", memberRouter);
 app.use("/campanhas/:id_campanha/sessoes", sessionRouter);
