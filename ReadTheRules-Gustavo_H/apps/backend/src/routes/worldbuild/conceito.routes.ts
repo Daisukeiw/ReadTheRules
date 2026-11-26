@@ -12,6 +12,7 @@ router.get('/', listConceitoController);
 router.get('/:id_conceito', getConceitoByIdController);
 router.get('/nome/:nome', getConceitoByNameController);
 router.put('/:id_conceito', updateConceitoController);
+router.patch('/:id_conceito', updateConceitoController);
 router.delete('/:id_conceito', deleteConceitoController);
 
 export default router;

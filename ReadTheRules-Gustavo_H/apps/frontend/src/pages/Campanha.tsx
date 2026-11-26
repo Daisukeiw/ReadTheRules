@@ -26,10 +26,11 @@ export default function Campanha() {
   const { id } = useParams();
   const [camp, setCamp] = useState<any>();
   const [aba, setAba] = useState("Sessões");
+  const [editar, setEditar] = useState<{ titulo: string; descricao: string }>();
+  const [erro, setErro] = useState("");
 
-  useEffect(() => {
-    api("/campanhas").then((r) => setCamp(r.membro.find((c: any) => c.id_campanha === id)));
-  }, [id]);
+  const carregar = () => api("/campanhas").then((r) => setCamp(r.membro.find((c: any) => c.id_campanha === id)));
+  useEffect(() => { carregar(); }, [id]);
 
   const mestre = camp?.role === "mestre";
   const abas = [...ABAS.filter((a) => !a.mestre || mestre).map((a) => a.nome), "Busca", ...(mestre ? ["Membros", "Assistente IA"] : [])];
@@ -42,8 +43,24 @@ export default function Campanha() {
         <Link to="/" className="marca pequena">READ THE RULES</Link>
         <span className="tag">{camp?.role}</span>
       </header>
-      <h1 className="titulo">{camp?.titulo}</h1>
-      <p>{camp?.descricao}</p>
+      {editar ? (
+        <form className="card form" onSubmit={(e) => {
+          e.preventDefault(); setErro("");
+          api(`/campanhas/${id}`, "PUT", editar).then(() => { setEditar(undefined); return carregar(); }).catch((e) => setErro(e.message));
+        }}>
+          <input value={editar.titulo} onChange={(e) => setEditar({ ...editar, titulo: e.target.value })} placeholder="Título" required />
+          <textarea value={editar.descricao} onChange={(e) => setEditar({ ...editar, descricao: e.target.value })} placeholder="Descrição" />
+          {erro && <p className="erro">{erro}</p>}
+          <div className="acoes">
+            <button className="btn">Salvar</button>
+            <button type="button" className="btn outline" onClick={() => setEditar(undefined)}>Cancelar</button>
+          </div>
+        </form>
+      ) : <>
+        <h1 className="titulo">{camp?.titulo}</h1>
+        <p>{camp?.descricao}</p>
+        {mestre && <button className="btn outline" onClick={() => setEditar({ titulo: camp.titulo, descricao: camp.descricao ?? "" })}>Editar campanha</button>}
+      </>}
       <nav className="abas">
         {abas.map((a) => <button key={a} className={a === aba ? "ativa" : ""} onClick={() => setAba(a)}>{a}</button>)}
       </nav>
@@ -62,6 +79,7 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
   const [itens, setItens] = useState<any[]>([]);
   const [form, setForm] = useState<Record<string, string>>(vazio);
   const [aberto, setAberto] = useState<any>();
+  const [editando, setEditando] = useState<string>();
   const [erro, setErro] = useState("");
 
   // cada rota devolve { <nome>: [...] }: pega o primeiro array
@@ -70,6 +88,14 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
   const rodar = (p: Promise<unknown>) => { setErro(""); return p.then(carregar).catch((e) => setErro(e.message)); };
 
   // PDF vai em base64 e o backend extrai o texto; .txt/.md vão direto como texto.
+  // Preenche o formulário com o item; o envio vira PATCH em vez de POST.
+  const editar = (i: any) => {
+    setEditando(i[aba.id]);
+    setForm(Object.fromEntries(aba.campos.map((c) => [c.n, c.t === "data" ? paraInputData(i[c.n]) : i[c.n] ?? ""])));
+    scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const cancelar = () => { setEditando(undefined); setForm(vazio()); };
+
   const lerArquivo = async (f?: File) => {
     if (!f) return;
     if (!f.name.toLowerCase().endsWith(".pdf")) return setForm({ ...form, nome: form.nome || f.name, conteudo: await f.text(), pdf: "" });
@@ -83,7 +109,8 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
       <form className="card form" onSubmit={(e) => {
         e.preventDefault();
         const corpo = aba.path === "eventos" ? { ...form, dt_evento: new Date(form.dt_evento).toISOString() } : form;
-        rodar(api(url, "POST", corpo).then(() => setForm(vazio())));
+        const salvar = editando ? api(`${url}/${editando}`, "PATCH", corpo) : api(url, "POST", corpo);
+        rodar(salvar.then(cancelar));
       }}>
         {aba.campos.map((c) => {
           const p = { value: form[c.n], placeholder: c.l, onChange: (e: any) => setForm({ ...form, [c.n]: e.target.value }) };
@@ -92,7 +119,10 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
           return <input key={c.n} {...p} type={c.t === "data" ? "datetime-local" : "text"} required={c.n === "nome" || c.n === "titulo"} />;
         })}
         {aba.arquivo && <input type="file" accept=".txt,.md,.pdf" onChange={(e) => lerArquivo(e.target.files?.[0])} />}
-        <button className="btn">Adicionar</button>
+        <div className="acoes">
+          <button className="btn">{editando ? "Salvar" : "Adicionar"}</button>
+          {editando && <button type="button" className="btn outline" onClick={cancelar}>Cancelar</button>}
+        </div>
       </form>
       <ul className="lista">
         {itens.map((i) => (
@@ -107,6 +137,7 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
                 <button className="btn outline" onClick={() => rodar(api(`/eventos/${i.id_evento}/confirmar`, "PATCH"))}>Vou</button>
                 <button className="btn outline" onClick={() => rodar(api(`/eventos/${i.id_evento}/recusar`, "PATCH"))}>Não vou</button>
               </>}
+              {!aba.arquivo && <button className="btn outline" onClick={() => editar(i)}>Editar</button>}
               <button className="btn perigo" onClick={() => rodar(api(`${url}/${i[aba.id]}`, "DELETE"))}>Excluir</button>
             </div>
           </li>
@@ -116,6 +147,13 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
     </section>
   );
 }
+
+// ISO (UTC) -> valor de <input type="datetime-local"> no fuso do navegador.
+const paraInputData = (iso?: string) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
 function Busca({ base }: { base: string }) {
   const [q, setQ] = useState("");

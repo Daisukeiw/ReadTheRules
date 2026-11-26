@@ -12,6 +12,7 @@ router.get('/', listDeusController);
 router.get('/:id_deus', getDeusByIdController);
 router.get('/nome/:nome', getDeusByNameController);
 router.put('/:id_deus', updateDeusController);
+router.patch('/:id_deus', updateDeusController);
 router.delete('/:id_deus', deleteDeusController);
 
 export default router;
