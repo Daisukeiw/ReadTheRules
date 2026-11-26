@@ -1,3 +1,9 @@
+@import "tailwindcss";
+@import "lenis/dist/lenis.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Paleta do Read the Rules */
 :root {
   --primary: #bd9b60;
   --secondary: #9e1b1b;
@@ -7,6 +13,78 @@
   --input: #2a2a35;
   --texto: #e8e4dc;
 }
+
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* tokens do shadcn/ui apontando para a paleta */
+  --background: var(--neutral);
+  --foreground: var(--texto);
+  --card-foreground: var(--texto);
+  --popover: var(--card);
+  --popover-foreground: var(--texto);
+  --primary-foreground: var(--neutral);
+  --secondary-foreground: var(--texto);
+  --muted: var(--input);
+  --muted-foreground: #a8a39a;
+  --accent: var(--input);
+  --accent-foreground: var(--texto);
+  --destructive: #f08a8a;
+  --border: #34343f;
+  --ring: var(--primary);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ouro: var(--primary);
+  --color-sangue: var(--secondary);
+  --color-pergaminho: var(--tertiary);
+  --color-noite: var(--neutral);
+  --color-texto: var(--texto);
+  /* vermelho da paleta clareado, só para texto sobre o fundo escuro (contraste) */
+  --color-sangue-claro: #d9584f;
+  --font-display: "Cinzel", serif;
+  --font-serif: "Crimson Pro", Georgia, serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* superfícies do navegador também seguem a paleta */
+::selection { background: var(--primary); color: var(--neutral); }
+html { color-scheme: dark; scrollbar-color: #4a4232 var(--neutral); }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+input { caret-color: var(--primary); }
+input:focus-visible { outline: none; } /* o campo já tem o anel dourado do shadcn */
+
+@keyframes surgir { from { opacity: 0; transform: translateY(8px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@layer base {
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--neutral); color: var(--texto); font: 18px/1.5 "Crimson Pro", Georgia, serif; }
 h1, h2, h3, label, button, .tag, .abas, .marca { font-family: "Cinzel", serif; }
@@ -57,3 +135,4 @@ pre.corpo { font: inherit; max-height: 300px; overflow: auto; background: var(--
 .abas { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0; }
 .abas button { background: var(--card); color: var(--tertiary); border: 1px solid transparent; border-radius: 6px; padding: .35rem .8rem; cursor: pointer; font-size: .8rem; }
 .abas button.ativa { background: var(--primary); color: var(--neutral); }
+}
