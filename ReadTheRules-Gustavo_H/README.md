@@ -56,6 +56,8 @@ Tudo em `/campanhas/:id_campanha/...` exige ser membro **ativo** da campanha. As
 |---|---|---|
 | POST | `/auth/register` `{name, email, senha}` | Cadastro |
 | POST | `/auth/login` `{email, senha}` | Devolve `token` |
+| POST | `/auth/esqueci-senha` `{email}` | Manda por email um link para criar nova senha (vale 30 min, uso único). Sem `SMTP_URL`, o link sai no console |
+| POST | `/auth/redefinir-senha` `{token, senha}` | Troca a senha com o token do link |
 | POST/GET | `/campanhas` | Cria / lista minhas campanhas |
 | GET, PUT (mestre), DELETE (mestre) | `/campanhas/:id` | Campanha |
 | CRUD | `/campanhas/:id/sessoes`, `/notas` | Pré e pós-sessão |

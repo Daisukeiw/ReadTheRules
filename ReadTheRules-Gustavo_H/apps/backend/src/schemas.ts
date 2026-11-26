@@ -36,3 +36,7 @@ export const conviteSchema = z.object({
     email: z.email("email inválido").optional(),
     id_usuario: z.uuid("id inválido").optional(),
 }).refine((c) => c.email || c.id_usuario, { message: "informe o email do jogador" });
+
+export const esqueciSchema = z.object({ email: z.email("email inválido") });
+
+export const redefinirSchema = z.object({ token: z.string().min(1, "obrigatório"), senha: registerSchema.shape.senha });
