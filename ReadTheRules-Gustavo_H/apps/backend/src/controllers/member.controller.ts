@@ -4,8 +4,8 @@ import { aceitarConvite, convidarPlayer, listarConvitesJogador, listarConvitesMe
 export const convidarPlayerController = async(req: Request, res: Response) => {
     try {
         const { id_campanha } = req.params as {id_campanha:  string};
-        const { id_usuario } = req.body;
-        const membro = await convidarPlayer(id_campanha, id_usuario);
+        const { id_usuario, email } = req.body;
+        const membro = await convidarPlayer(id_campanha, id_usuario, email);
         res.status(201).json({ membro });
     } catch (error:any) {
         res.status(400).json({ message: error.message });

@@ -1,11 +1,13 @@
 import { Router } from 'express';
+import { validar } from "../../middlewares/validar.js";
+import { comNomeSchema } from "../../schemas.js";
 import { authenticate } from '../../middlewares/authenticate.js';
 import { createCriaturaController, deleteCriaturaController, getCriaturaByIdController, getCriaturaByNameController, listCriaturasController, updateCriaturaController } from '../../controllers/worldbuild/criatura.controller.js';
 
 const router = Router({ mergeParams: true });
 router.use(authenticate);
 
-router.post('/', createCriaturaController);
+router.post('/', validar(comNomeSchema), createCriaturaController);
 router.get('/', listCriaturasController);
 router.get('/:id_criatura', getCriaturaByIdController);
 router.get('/nome/:nome', getCriaturaByNameController);

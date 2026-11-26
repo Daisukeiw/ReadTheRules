@@ -1,11 +1,13 @@
 import { Router } from "express";
+import { validar } from "../../middlewares/validar.js";
+import { comNomeSchema } from "../../schemas.js";
 import { authenticate } from "../../middlewares/authenticate.js";
 import { createPersonagemController, deletePersonagemController, getPersonagemByIdController, getPersonagemByNameController, listPersonagensController, updatePersonagemController } from "../../controllers/worldbuild/personagem.controller.js";
 
 const router = Router({ mergeParams: true });
 router.use(authenticate);
 
-router.post("/", createPersonagemController);
+router.post("/", validar(comNomeSchema), createPersonagemController);
 router.get("/", listPersonagensController);
 router.get("/:id_personagem", getPersonagemByIdController);
 router.get("/nome/:nome", getPersonagemByNameController);

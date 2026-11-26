@@ -19,7 +19,7 @@ const ABAS: Aba[] = [
   { nome: "Alianças", path: "aliancas", id: "id_alianca", campos: [nome, desc] },
   { nome: "Conceitos", path: "conceitos", id: "id_conceito", campos: [nome, desc] },
   { nome: "Calendário", path: "eventos", id: "id_evento", campos: [{ n: "titulo", l: "Título" }, { n: "dt_evento", l: "Data", t: "data" }] },
-  { nome: "Documentos", path: "documentos", id: "id_documento", mestre: true, arquivo: true, campos: [nome, { n: "conteudo", l: "Conteúdo (ou carregue um .txt/.md)", t: "area" }] },
+  { nome: "Documentos", path: "documentos", id: "id_documento", mestre: true, arquivo: true, campos: [nome, { n: "conteudo", l: "Conteúdo (ou carregue um .txt, .md ou .pdf)", t: "area" }] },
 ];
 
 export default function Campanha() {
@@ -69,7 +69,13 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
   useEffect(() => { carregar(); }, [url]);
   const rodar = (p: Promise<unknown>) => { setErro(""); return p.then(carregar).catch((e) => setErro(e.message)); };
 
-  const lerArquivo = async (f?: File) => f && setForm({ ...form, nome: form.nome || f.name, conteudo: await f.text() });
+  // PDF vai em base64 e o backend extrai o texto; .txt/.md vão direto como texto.
+  const lerArquivo = async (f?: File) => {
+    if (!f) return;
+    if (!f.name.toLowerCase().endsWith(".pdf")) return setForm({ ...form, nome: form.nome || f.name, conteudo: await f.text(), pdf: "" });
+    const url = await new Promise<string>((ok) => { const r = new FileReader(); r.onload = () => ok(r.result as string); r.readAsDataURL(f); });
+    setForm({ ...form, nome: form.nome || f.name, conteudo: "", pdf: url.split(",")[1]! });
+  };
 
   return (
     <section>
@@ -85,7 +91,7 @@ function Lista({ aba, base }: { aba: Aba; base: string }) {
           if (Array.isArray(c.t)) return <select key={c.n} {...p}>{c.t.map((o) => <option key={o}>{o}</option>)}</select>;
           return <input key={c.n} {...p} type={c.t === "data" ? "datetime-local" : "text"} required={c.n === "nome" || c.n === "titulo"} />;
         })}
-        {aba.arquivo && <input type="file" accept=".txt,.md" onChange={(e) => lerArquivo(e.target.files?.[0])} />}
+        {aba.arquivo && <input type="file" accept=".txt,.md,.pdf" onChange={(e) => lerArquivo(e.target.files?.[0])} />}
         <button className="btn">Adicionar</button>
       </form>
       <ul className="lista">
@@ -124,7 +130,7 @@ function Busca({ base }: { base: string }) {
       {erro && <p className="erro">{erro}</p>}
       {res && Object.entries(res).filter(([, v]) => v.length).map(([grupo, v]) => (
         <div key={grupo}>
-          <h2>{grupo}</h2>
+          <h2>{grupo === "relacionados" ? "trechos relacionados (por significado)" : grupo}</h2>
           <ul className="lista">
             {v.map((i, k) => <li key={k} className="card"><h3>{i.nome ?? i.titulo}</h3><p className="corpo">{i.trecho ?? i.descricao ?? i.corpo}</p></li>)}
           </ul>
@@ -145,8 +151,8 @@ function Membros({ id, base }: { id: string; base: string }) {
   return (
     <section>
       {erro && <p className="erro">{erro}</p>}
-      <form className="card form linha" onSubmit={(e) => { e.preventDefault(); rodar(api(`/membros/${id}/convidar`, "POST", { id_usuario: novo.trim() }).then(() => setNovo(""))); }}>
-        <input placeholder="ID do jogador (aparece na tela inicial dele)" value={novo} onChange={(e) => setNovo(e.target.value)} required />
+      <form className="card form linha" onSubmit={(e) => { e.preventDefault(); rodar(api(`/membros/${id}/convidar`, "POST", { email: novo.trim() }).then(() => setNovo(""))); }}>
+        <input type="email" placeholder="Email do jogador (ele precisa ter conta)" value={novo} onChange={(e) => setNovo(e.target.value)} required />
         <button className="btn">Convidar</button>
       </form>
       <ul className="lista">

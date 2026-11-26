@@ -25,7 +25,7 @@ import { buscarController } from "./controllers/ia.controller.js";
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: "10mb" })); // documentos de regras podem ser grandes
+app.use(express.json({ limit: "30mb" })); // documentos de regras e PDFs (em base64) podem ser grandes
 
 app.get("/health", (_req, res) => { res.json({ ok: true }); });
 

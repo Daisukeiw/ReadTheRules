@@ -1,9 +1,17 @@
 import prisma from "../utils/prisma.js";
 
+// O mestre convida pelo email (ou pelo id) do jogador.
 export const convidarPlayer = async (
   id_campanha: string,
-  id_usuario: string,
+  id?: string,
+  email?: string,
 ) => {
+  const usuario = await prisma.usuario.findFirst({
+    where: email ? { email_usuario: { equals: email, mode: "insensitive" } } : { id_usuario: id! },
+  });
+  if (!usuario) throw new Error("Nenhum usuário cadastrado com esse email");
+  const id_usuario = usuario.id_usuario;
+
   const membroExistente = await prisma.membroCampanha.findUnique({
     where: {
       id_campanha_id_usuario: {
@@ -56,8 +64,11 @@ export const aceitarConvite = async (
     },
   });
 
-  if (membroExistente && membroExistente.status === "ativo") {
+  if (membroExistente?.status === "ativo") {
     throw new Error("Você já aceitou o convite para essa campanha");
+  }
+  if (membroExistente?.status !== "pendente") {
+    throw new Error("Não existe um convite pendente para essa campanha");
   }
   const membro = await prisma.membroCampanha.update({
     where: {
@@ -134,18 +145,9 @@ export const listarConvitesJogador = async (id_usuario: string) => {
     where: {
       id_usuario,
       role: "jogador",
+      status: "pendente",
     },
-    include: {
-      Usuario: {
-        select: {
-          id_usuario: true,
-          nome_usuario: true,
-          email_usuario: true,
-          foto_perfil: true,
-          dt_criacao: true,
-        },
-      },
-    },
+    include: { Campanha: { select: { id_campanha: true, titulo: true, descricao: true } } },
   });
   return membros;
 };

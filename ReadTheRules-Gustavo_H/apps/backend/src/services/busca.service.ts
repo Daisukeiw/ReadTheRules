@@ -1,4 +1,5 @@
 import prisma from "../utils/prisma.js";
+import { temEmbeddings, trechosRelacionados } from "./embedding.service.js";
 
 // Busca rápida para usar durante a sessão: um termo em notas, worldbuilding e documentos.
 export const buscar = async (id_campanha: string, q: string) => {
@@ -21,7 +22,11 @@ export const buscar = async (id_campanha: string, q: string) => {
     // Documentos podem ser enormes: devolve só um trecho em volta do termo.
     const documentos = docs.map(({ conteudo, ...d }) => ({ ...d, trecho: trecho(conteudo, q.trim()) }));
 
-    return { notas, personagens, itens, locais, criaturas, deuses, aliancas, conceitos, documentos };
+    // Busca por significado nos documentos ("como funciona agarrar?" acha a regra mesmo sem a palavra exata).
+    // Se a API de embeddings falhar, a busca por palavra continua funcionando.
+    const relacionados = temEmbeddings() ? await trechosRelacionados(id_campanha, q.trim(), 5).catch(() => []) : [];
+
+    return { notas, personagens, itens, locais, criaturas, deuses, aliancas, conceitos, documentos, relacionados };
 };
 
 export const trecho = (texto: string, q: string, raio = 300) => {

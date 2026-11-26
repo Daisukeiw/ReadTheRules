@@ -49,6 +49,7 @@ model Campanha {
   Criatura         Criatura[]
   Deus             Deus[]
   DocumentoExterno DocumentoExterno[]
+  Embedding        Embedding[]
   HistoricoIA      HistoricoIA[]
   Item             Item[]
   Local            Local[]
@@ -173,12 +174,16 @@ model Nota {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Embedding {
   id_embedding  String   @id @default(uuid()) @db.Uuid
+  id_campanha   String   @db.Uuid
   entidade_tipo String   @db.VarChar(20)
   entidade_id   String   @db.Uuid
-  vector        String
+  trecho        String
+  vector        Unsupported("vector")
   dt_criacao    DateTime @default(now()) @db.Timestamp(6)
+  Campanha      Campanha @relation(fields: [id_campanha], references: [id_campanha], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([entidade_tipo, entidade_id])
+  @@index([id_campanha])
 }
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
