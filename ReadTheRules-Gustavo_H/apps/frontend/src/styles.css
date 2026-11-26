@@ -28,7 +28,6 @@ textarea { min-height: 110px; resize: vertical; }
 .card { background: var(--card); border-radius: 14px; padding: 1.25rem; }
 .erro { color: #f08a8a; }
 .tag { color: var(--tertiary); font-size: .75rem; letter-spacing: .05em; }
-.dica { font-size: .9rem; color: #aaa; }
 .corpo { white-space: pre-wrap; margin: .5rem 0 0; }
 pre.corpo { font: inherit; max-height: 300px; overflow: auto; background: var(--input); padding: .75rem; border-radius: 6px; }
 

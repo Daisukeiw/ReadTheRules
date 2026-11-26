@@ -6,8 +6,8 @@ type Params = { id_campanha: string; id_documento: string };
 export const createDocumentoController = async (req: Request, res: Response) => {
     try {
         const { id_campanha } = req.params as Params;
-        const { nome, tipo, conteudo } = req.body;
-        const documento = await createDocumento(id_campanha, nome, tipo, conteudo);
+        const { nome, tipo, conteudo, pdf } = req.body;
+        const documento = await createDocumento(id_campanha, nome, tipo, conteudo, pdf);
         res.status(201).json({ documento });
     } catch (error: any) {
         res.status(400).json({ message: error.message });

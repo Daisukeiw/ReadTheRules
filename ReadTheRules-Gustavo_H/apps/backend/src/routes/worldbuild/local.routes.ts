@@ -1,11 +1,13 @@
 import { Router } from 'express';
+import { validar } from "../../middlewares/validar.js";
+import { comNomeSchema } from "../../schemas.js";
 import { authenticate } from '../../middlewares/authenticate.js';
 import { createLocalController, deleteLocalController, getLocalByIdController, getLocalByNameController, listLocaisController, updateLocalController } from '../../controllers/worldbuild/local.controller.js';
 
 const router = Router({ mergeParams: true });
 router.use(authenticate);
 
-router.post('/', createLocalController);
+router.post('/', validar(comNomeSchema), createLocalController);
 router.get('/', listLocaisController);
 router.get('/:id_local', getLocalByIdController);
 router.get('/nome/:nome', getLocalByNameController);

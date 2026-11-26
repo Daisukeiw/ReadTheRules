@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, meuId, setToken } from "../api";
+import { api, setToken } from "../api";
 
 export default function Campanhas() {
   const [lista, setLista] = useState<any[]>([]);
@@ -19,7 +19,6 @@ export default function Campanhas() {
         <span className="marca pequena">READ THE RULES</span>
         <button className="btn outline" onClick={() => { setToken(null); nav("/login"); }}>Sair</button>
       </header>
-      <p className="dica">Seu ID (passe para o mestre te convidar): <code>{meuId()}</code></p>
       {erro && <p className="erro">{erro}</p>}
 
       <h2>Minhas campanhas</h2>
