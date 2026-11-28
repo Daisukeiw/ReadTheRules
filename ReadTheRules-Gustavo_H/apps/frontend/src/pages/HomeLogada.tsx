@@ -67,6 +67,10 @@ export default function HomeLogada() {
     setCarregando(s);
     window.setTimeout(() => { setSecao(s); setCarregando(null); }, reduzMovimento() ? 250 : 1400);
   };
+  const trocarFoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const a = e.target.files?.[0];
+    if (a) setFoto(await lerImagem(a, 256));
+  };
   const avisar = (t: string) => { setAviso(t); clearTimeout(avisoT.current); avisoT.current = window.setTimeout(() => setAviso(""), 2600); };
   const usar = (f: Ferramenta) => f.alvo
     ? (lenis ? lenis.scrollTo(f.alvo === "#topo" ? 0 : f.alvo, { offset: -88 }) : document.querySelector(f.alvo)?.scrollIntoView())
@@ -89,6 +93,11 @@ export default function HomeLogada() {
             </button>
           ))}
         </nav>
+        <label title={foto ? "Trocar foto" : "Adicionar foto"} className="grid size-10 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full border-2 border-ouro/70 bg-[linear-gradient(160deg,#9e1b1b,#5c1010)] text-pergaminho/80 transition-transform duration-200 hover:scale-105">
+          {foto ? <img src={foto} alt="Sua foto" className="size-full object-cover" /> : <Silhueta />}
+          <span className="sr-only">{foto ? "Trocar foto" : "Adicionar foto"}</span>
+          <input type="file" accept="image/*" className="sr-only" onChange={trocarFoto} />
+        </label>
         <button onClick={() => { setToken(null); nav("/login"); }} aria-label="Sair"
           className="flex shrink-0 cursor-pointer items-center gap-2 rounded-full border border-border bg-transparent px-3 py-1.5 font-display text-sm text-pergaminho/80 hover:border-ouro hover:text-ouro">
           <LogOut className="size-4" /><span className="hidden sm:inline">Sair</span>
@@ -102,10 +111,7 @@ export default function HomeLogada() {
             {foto ? <img src={foto} alt="Sua foto" className="size-full object-cover" /> : <Silhueta />}
           </span>
           <span className="sr-only">{foto ? "Trocar foto" : "Adicionar foto"}</span>
-          <input type="file" accept="image/*" className="sr-only" onChange={async (e) => {
-            const a = e.target.files?.[0];
-            if (a) setFoto(await lerImagem(a, 256));
-          }} />
+          <input type="file" accept="image/*" className="sr-only" onChange={trocarFoto} />
         </label>
         <ul key={secao} className="m-0 flex flex-1 list-none flex-col p-0">
           {FERRAMENTAS[secao].map((f, i) => (
