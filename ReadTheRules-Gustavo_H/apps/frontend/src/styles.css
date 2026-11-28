@@ -80,6 +80,7 @@ input:focus-visible { outline: none; } /* o campo já tem o anel dourado do shad
 
 @keyframes surgir { from { opacity: 0; transform: translateY(8px); } }
 @keyframes aparecer { from { opacity: 0; } }
+@keyframes entrar-lado { from { transform: translateX(-100%); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
