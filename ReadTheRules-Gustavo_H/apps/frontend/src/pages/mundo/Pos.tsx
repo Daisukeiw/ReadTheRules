@@ -4,6 +4,7 @@ import { Bot, FileText, Lightbulb, ScrollText, Sparkles, Trash2, Upload } from "
 import { BotaoOuro } from "@/components/Campo";
 import { cn } from "@/lib/utils";
 import { novoId, useArquivos, useRoteiros, type Arquivo, type Roteiro } from "../homeLogada/dados";
+import { avisar, motivo, perguntarIA } from "../homeLogada/servidor";
 import { BlocoResumo } from "./Intra";
 import { Vazio } from "./Moldura";
 import { useCampanha } from "./Mundo";
@@ -12,7 +13,7 @@ const dataBr = (d?: string) => d?.split("-").reverse().join("/") ?? "";
 const kb = (n: number) => (n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`);
 const primeiraFrase = (r: Roteiro) => (r.resumo.find((b) => b.tipo === "texto" && b.texto.trim()) as { texto: string } | undefined)?.texto.split(/(?<=[.!?])\s/)[0] ?? "Sem resumo escrito.";
 
-// shortcut: resumo e conselhos montados no navegador a partir das sessões e arquivos; trocar pela IA do back-end.
+// Reserva montada no navegador, para quando a IA do servidor não responder.
 function resumoCampanha(nome: string, sessoes: Roteiro[], arquivos: Arquivo[]) {
   if (!sessoes.length) return "Ainda não há sessões encerradas para resumir.";
   const combates = sessoes.reduce((n, r) => n + r.resumo.filter((b) => b.tipo === "combate" && b.estado === "inicio").length, 0);
@@ -36,16 +37,27 @@ export function Pos() {
   const [arquivos, setArquivos] = useArquivos();
   const [params, setParams] = useSearchParams();
   const [ia, setIa] = useState<string>();
+  const [pensando, setPensando] = useState(false);
+  const pedir = (pergunta: string, tipo: string, reserva: () => string) => {
+    setPensando(true); setIa(undefined);
+    perguntarIA(campanha.id, `(Sistema da campanha: ${campanha.sistema}.)\n${pergunta}`, tipo)
+      .catch((e: Error) => `A IA do servidor não respondeu${motivo(e)}. Versão montada no navegador:\n\n${reserva()}`)
+      .then((r) => { setIa(r); setPensando(false); });
+  };
+  const base64 = (f: File) => new Promise<string>((ok, falha) => {
+    const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = falha; r.readAsDataURL(f);
+  });
   const encerradas = roteiros.filter((r) => r.campanhaId === campanha.id && r.status === "encerrada").sort((a, b) => b.numero - a.numero);
   const meus = arquivos.filter((a) => a.campanhaId === campanha.id);
   const atual = encerradas.find((r) => r.id === params.get("sessao"));
 
   const enviar = async (lista: FileList | null) => {
     if (!lista) return;
-    const novos = await Promise.all([...lista].map(async (f): Promise<Arquivo> => ({
+    // o back-end lê texto puro e PDF (em base64); DOCX ainda não
+    const aceitos = [...lista].filter((f) => /\.(txt|md|pdf)$/i.test(f.name) || (avisar(`${f.name}: o servidor só lê .txt, .md e .pdf.`), false));
+    const novos = await Promise.all(aceitos.map(async (f): Promise<Arquivo> => ({
       id: novoId(), campanhaId: campanha.id, nome: f.name, tamanho: f.size, enviadoEm: new Date().toISOString(),
-      // texto puro é guardado para a IA; PDF/DOCX ficam só registrados até o back-end ler esses formatos
-      texto: /\.(txt|md)$/i.test(f.name) && f.size < 200_000 ? await f.text() : undefined,
+      ...(/\.pdf$/i.test(f.name) ? { pdf: await base64(f) } : { conteudo: await f.text() }),
     })));
     setArquivos((l) => [...novos, ...l]);
   };
@@ -90,16 +102,16 @@ export function Pos() {
               <p className="mt-1 mb-0 text-lg text-texto/60">Releia as sessões e peça ajuda à IA para continuar a história.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <BotaoOuro onClick={() => setIa(resumoCampanha(campanha.nome, [...encerradas].reverse(), meus))}><ScrollText /> Resumir a campanha</BotaoOuro>
-              <BotaoOuro variant="outline" onClick={() => setIa(conselhos([...encerradas].reverse()))}><Lightbulb /> Como seguir a história?</BotaoOuro>
+              <BotaoOuro disabled={pensando} onClick={() => pedir("Resuma a campanha até aqui, sessão por sessão, destacando ganchos em aberto.", "resumo", () => resumoCampanha(campanha.nome, [...encerradas].reverse(), meus))}><ScrollText /> Resumir a campanha</BotaoOuro>
+              <BotaoOuro variant="outline" disabled={pensando} onClick={() => pedir("Dê ideias concretas para a próxima sessão, retomando notas e ganchos pendentes.", "conselho", () => conselhos([...encerradas].reverse()))}><Lightbulb /> Como seguir a história?</BotaoOuro>
             </div>
-            {ia ? (
+            {pensando ? <p className="m-0 text-lg text-texto/60">A IA está lendo a campanha…</p> : ia ? (
               <div className="flex gap-3 rounded-2xl border border-ouro/30 bg-card p-5 animate-[surgir_.3s_var(--ease-out)]">
                 <span className="grid size-9 shrink-0 place-items-center rounded-full border border-ouro/40 bg-ouro/10 text-ouro"><Bot className="size-4" /></span>
                 <p className="m-0 text-lg leading-relaxed whitespace-pre-line text-texto/90">{ia}</p>
               </div>
             ) : <Vazio icone={Bot} titulo="A IA da campanha" texto="Ela lê as sessões encerradas e os arquivos que você enviar. Escolha uma das opções acima." />}
-            <p className="m-0 text-sm text-texto/40">Modo de demonstração: as respostas são montadas a partir das suas sessões; a IA de verdade entra quando a página for ligada ao back-end.</p>
+            <p className="m-0 text-sm text-texto/40">A IA do servidor lê as sessões encerradas, as notas, as entidades e os arquivos desta campanha.</p>
           </div>
         )}
       </section>
@@ -111,8 +123,8 @@ export function Pos() {
           onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); enviar(e.dataTransfer.files); }}>
           <Upload className="size-6" />
           <span className="font-display text-sm">Enviar arquivos</span>
-          <span className="text-xs text-texto/45">.txt, .md, .pdf, .docx · ou arraste aqui</span>
-          <input type="file" multiple accept=".txt,.md,.pdf,.docx" className="sr-only" onChange={(e) => { enviar(e.target.files); e.target.value = ""; }} />
+          <span className="text-xs text-texto/45">.txt, .md, .pdf · ou arraste aqui</span>
+          <input type="file" multiple accept=".txt,.md,.pdf" className="sr-only" onChange={(e) => { enviar(e.target.files); e.target.value = ""; }} />
         </label>
         <p className="mt-5 mb-2 font-display text-xs tracking-[0.2em] text-texto/45 uppercase">Histórico</p>
         <ul className="m-0 flex list-none flex-col gap-2 p-0">
@@ -121,7 +133,7 @@ export function Pos() {
               <FileText className="size-4 shrink-0 text-ouro" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-base text-texto">{a.nome}</span>
-                <span className="block text-xs text-texto/45">{kb(a.tamanho)} · {new Date(a.enviadoEm).toLocaleDateString("pt-BR")}{a.texto ? " · lido" : ""}</span>
+                <span className="block text-xs text-texto/45">{a.tamanho ? `${kb(a.tamanho)} · ` : ""}{new Date(a.enviadoEm).toLocaleDateString("pt-BR")}</span>
               </span>
               <button aria-label={`Remover ${a.nome}`} onClick={() => setArquivos((l) => l.filter((x) => x.id !== a.id))} className="grid size-7 cursor-pointer place-items-center rounded-full border-0 bg-transparent text-texto/40 hover:text-sangue-claro"><Trash2 className="size-4" /></button>
             </li>

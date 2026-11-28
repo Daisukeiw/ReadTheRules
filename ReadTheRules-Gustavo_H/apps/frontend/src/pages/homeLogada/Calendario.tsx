@@ -3,8 +3,9 @@ import { Ban, CalendarCheck, CalendarPlus, CalendarX, Lock, ChevronLeft, Chevron
 import { BotaoOuro, Campo } from "@/components/Campo";
 import { cn } from "@/lib/utils";
 import { Link } from "react-router-dom";
-import { JOGADORES, iso, nomeJogador, novoId, useCampanhas, useImpedimentos, usePersistido, useRoteiros, useSessoes, type Campanha, type Roteiro, type Sessao, type StatusConvite } from "./dados";
+import { iso, nomeJogador, novoId, useCampanhas, useImpedimentos, usePersistido, useRoteiros, useSessoes, type Campanha, type Roteiro, type Sessao, type StatusConvite } from "./dados";
 import { Modal, Rotulo, TituloSecao, campoTexto } from "./ui";
+import { meuId } from "./servidor";
 
 const SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const SEMANA_PLURAL = ["domingos", "segundas", "terças", "quartas", "quintas", "sextas", "sábados"];
@@ -31,7 +32,6 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
   const hoje = iso(new Date());
   const [mes, setMes] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [sel, setSel] = useState<string>();
-  const [visao, setVisao] = useState("mestre"); // "mestre" ou o id de um jogador mockado
   const [aviso, setAviso] = useState("");
   const [marcar, setMarcar] = useState(false);
   const [convidar, setConvidar] = useState<Sessao>();
@@ -52,10 +52,13 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
     liberados: bloq.liberados.filter((k) => semanaDe(k) !== n),
   });
 
-  const mestre = visao === "mestre";
-  const visiveis = mestre ? sessoes : sessoes.filter((s) => s.convites[visao]);
-  const doDia = (d: string) => visiveis.filter((s) => s.data === d);
+  const eu = meuId() ?? "";
   const campanha = (id: string) => campanhas.find((c) => c.id === id);
+  // Cada sessão é vista como mestre ou como jogador, conforme o papel na campanha dela.
+  const mestreDe = (s: Sessao) => campanha(s.campanhaId)?.papel === "mestre";
+  const minhas = campanhas.filter((c) => c.papel === "mestre");
+  const mestre = !campanhas.length || minhas.length > 0; // ferramentas de marcar e bloquear dias
+  const doDia = (d: string) => sessoes.filter((s) => s.data === d);
 
   // Semanas que cobrem o mês, começando no domingo.
   const inicio = new Date(mes.getFullYear(), mes.getMonth(), 1 - mes.getDay());
@@ -70,19 +73,11 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
     if (!livre && desativado(sel)) return setAviso("Esse dia está desativado. Ative-o para usar.");
     setAviso(""); acao(sel);
   };
-  const responder = (s: Sessao, st: StatusConvite) => setSessoes((l) => l.map((x) => x.id === s.id ? { ...x, convites: { ...x.convites, [visao]: st } } : x));
+  const responder = (s: Sessao, st: StatusConvite) => setSessoes((l) => l.map((x) => x.id === s.id ? { ...x, convites: { ...x.convites, [eu]: st } } : x));
 
   return (
     <section id="calendario" aria-labelledby="t-calendario" className="scroll-mt-24" data-surge>
-      <TituloSecao id="t-calendario" extra={
-        <label className="flex items-center gap-2 font-display text-sm text-pergaminho">
-          Ver como
-          <select value={visao} onChange={(e) => { setVisao(e.target.value); setAviso(""); }} className={cn(campoTexto, "w-auto py-1.5 text-base")}>
-            <option value="mestre">Você (mestre)</option>
-            {JOGADORES.map((j) => <option key={j.id} value={j.id}>{j.nome} (jogador)</option>)}
-          </select>
-        </label>
-      }>Calendário colaborativo</TituloSecao>
+      <TituloSecao id="t-calendario">Calendário colaborativo</TituloSecao>
 
       <div>
         <span className="inline-block bg-sangue py-1.5 pr-9 pl-4 font-display text-sm font-semibold tracking-wide text-texto [clip-path:polygon(0_0,85%_0,100%_100%,0_100%)]">Calendário</span>
@@ -95,7 +90,7 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
               <button aria-label="Mês anterior" onClick={() => mudarMes(-1)} className="grid size-9 cursor-pointer place-items-center rounded-full border border-border bg-transparent text-pergaminho hover:border-ouro hover:text-ouro"><ChevronLeft className="size-4" /></button>
               <button aria-label="Próximo mês" onClick={() => mudarMes(1)} className="grid size-9 cursor-pointer place-items-center rounded-full border border-border bg-transparent text-pergaminho hover:border-ouro hover:text-ouro"><ChevronRight className="size-4" /></button>
             </div>
-            <BotaoOuro variant="outline" className="ml-auto h-9 px-4 text-sm" onClick={() => setVerConvidados(true)}><Users /> Jogadores convidados</BotaoOuro>
+            {mestre && <BotaoOuro variant="outline" className="ml-auto h-9 px-4 text-sm" onClick={() => setVerConvidados(true)}><Users /> Jogadores convidados</BotaoOuro>}
           </div>
 
           <div className="overflow-hidden rounded-xl border border-border">
@@ -135,7 +130,7 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
                     <span className={cn("self-end font-display text-sm sm:text-lg",
                       k === hoje && "grid size-7 place-items-center rounded-full bg-ouro text-noite sm:size-8")}>{d.getDate()}</span>
                     {ss.map((s) => {
-                      const st = !mestre ? s.convites[visao] : undefined;
+                      const st = mestreDe(s) ? undefined : s.convites[eu];
                       return (
                         <span key={s.id} className={cn("truncate rounded px-1 py-0.5 font-display text-[0.6rem] font-semibold sm:text-xs",
                           st === "pendente" ? "border border-dashed border-ouro text-ouro" : st === "recusado" ? "bg-input text-texto/50 line-through" : "bg-ouro text-noite")}>
@@ -154,8 +149,8 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
 
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
             <div className="min-w-0 flex-1">
-              {sel && <DetalhesDia dia={sel} sessoes={doDia(sel)} campanha={campanha} visao={visao} responder={responder} roteiros={roteiros} />}
-              {!sel && <p className="m-0 text-base text-texto/60">{mestre ? "Clique em um dia para ver ou marcar sessões. Clique no nome de um dia da semana para desativar ou reativar todos eles." : `Você está vendo o calendário de ${nomeJogador(visao)}. Clique em um dia com convite para responder.`}</p>}
+              {sel && <DetalhesDia dia={sel} sessoes={doDia(sel)} campanha={campanha} mestreDe={mestreDe} eu={eu} responder={responder} roteiros={roteiros} />}
+              {!sel && <p className="m-0 text-base text-texto/60">{mestre ? "Clique em um dia para ver ou marcar sessões. Clique no nome de um dia da semana para desativar ou reativar todos eles." : "Clique em um dia com sessão para confirmar ou recusar sua presença."}</p>}
             </div>
             {mestre && (
               <div className="flex shrink-0 flex-col items-end gap-2">
@@ -177,11 +172,11 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
       </div>
 
       {marcar && sel && (
-        <MarcarSessao dia={sel} campanhas={campanhas} sessoes={sessoes} aoFechar={() => setMarcar(false)}
+        <MarcarSessao dia={sel} campanhas={minhas} sessoes={sessoes} aoFechar={() => setMarcar(false)}
           adicionar={(s) => { setSessoes((l) => [...l, s]); setMarcar(false); setConvidar(s); }} />
       )}
       {convidar && (
-        <EnviarConvites sessao={convidar} jogadores={campanha(convidar.campanhaId)?.jogadores ?? JOGADORES.map((j) => j.id)}
+        <EnviarConvites sessao={convidar} jogadores={campanha(convidar.campanhaId)?.jogadores ?? []}
           aoFechar={() => setConvidar(undefined)}
           enviar={(ids) => {
             setSessoes((l) => l.map((x) => x.id === convidar.id ? { ...x, convites: Object.fromEntries(ids.map((i) => [i, "pendente" as const])) } : x));
@@ -190,14 +185,14 @@ export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) 
       )}
       <Modal aberto={verConvidados} aoFechar={() => setVerConvidados(false)} titulo="Jogadores convidados" descricao="Quem já respondeu às próximas sessões.">
         <ul className="m-0 flex list-none flex-col gap-4 p-0">
-          {sessoes.filter((s) => s.data >= hoje).sort((a, b) => a.data.localeCompare(b.data)).map((s) => (
+          {sessoes.filter((s) => s.data >= hoje && mestreDe(s)).sort((a, b) => a.data.localeCompare(b.data)).map((s) => (
             <li key={s.id} className="rounded-xl border border-border bg-input/40 p-4">
               <p className="m-0 font-display text-base text-ouro">Sessão {s.numero} · {dataBr(s.data)}</p>
               <p className="m-0 text-sm text-texto/60">{campanha(s.campanhaId)?.nome ?? "Sem campanha"}</p>
               <Convidados convites={s.convites} />
             </li>
           ))}
-          {!sessoes.some((s) => s.data >= hoje) && <li className="text-texto/60">Nenhuma sessão marcada daqui para frente.</li>}
+          {!sessoes.some((s) => s.data >= hoje && mestreDe(s)) && <li className="text-texto/60">Nenhuma sessão marcada daqui para frente.</li>}
         </ul>
       </Modal>
     </section>
@@ -216,8 +211,8 @@ function Convidados({ convites }: { convites: Sessao["convites"] }) {
   );
 }
 
-function DetalhesDia({ dia, sessoes, campanha, visao, responder, roteiros }: {
-  dia: string; sessoes: Sessao[]; campanha: (id: string) => Campanha | undefined; visao: string; responder: (s: Sessao, st: StatusConvite) => void; roteiros: Roteiro[];
+function DetalhesDia({ dia, sessoes, campanha, mestreDe, eu, responder, roteiros }: {
+  dia: string; sessoes: Sessao[]; campanha: (id: string) => Campanha | undefined; mestreDe: (s: Sessao) => boolean; eu: string; responder: (s: Sessao, st: StatusConvite) => void; roteiros: Roteiro[];
 }) {
   if (!sessoes.length) return <p className="m-0 text-base text-texto/70">{dataBr(dia)}: nenhuma sessão neste dia.</p>;
   return (
@@ -230,19 +225,19 @@ function DetalhesDia({ dia, sessoes, campanha, visao, responder, roteiros }: {
           </div>
           <p className="mt-1 mb-0 flex flex-wrap gap-x-4 text-base text-texto/70">
             <span className="flex items-center gap-1"><MapPin className="size-4" />{s.local || "Local a definir"}</span>
-            <span className="flex items-center gap-1"><Clock className="size-4" />{s.inicio} às {s.fim}</span>
+            <span className="flex items-center gap-1"><Clock className="size-4" />{s.inicio}{s.fim && ` às ${s.fim}`}</span>
           </p>
           {s.sinopse && <p className="mt-2 mb-0 text-base">{s.sinopse}</p>}
-          {visao === "mestre" && roteiros.filter((r) => r.sessaoId === s.id).map((r) => (
+          {mestreDe(s) && roteiros.filter((r) => r.sessaoId === s.id).map((r) => (
             <Link key={r.id} to={`/mundo/${r.campanhaId}/sessao/${r.id}`} className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-ouro/40 px-3 py-0.5 font-display text-xs text-ouro hover:bg-ouro/10">
               Roteiro anexado: {r.titulo || `Sessão ${r.numero}`} (só você vê)
             </Link>
           ))}
-          {visao === "mestre" ? <Convidados convites={s.convites} /> : (
+          {mestreDe(s) ? <Convidados convites={s.convites} /> : (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className={cn("rounded-full border px-2.5 py-0.5 text-sm", STATUS[s.convites[visao]].cor)}>{STATUS[s.convites[visao]].rotulo}</span>
-              {s.convites[visao] !== "confirmado" && <BotaoOuro className="h-9 text-sm" onClick={() => responder(s, "confirmado")}>Confirmar presença</BotaoOuro>}
-              {s.convites[visao] !== "recusado" && <BotaoOuro variant="outline" className="h-9 text-sm" onClick={() => responder(s, "recusado")}>Não vou poder</BotaoOuro>}
+              <span className={cn("rounded-full border px-2.5 py-0.5 text-sm", STATUS[(s.convites[eu] ?? "pendente")].cor)}>{STATUS[(s.convites[eu] ?? "pendente")].rotulo}</span>
+              {(s.convites[eu] ?? "pendente") !== "confirmado" && <BotaoOuro className="h-9 text-sm" onClick={() => responder(s, "confirmado")}>Confirmar presença</BotaoOuro>}
+              {(s.convites[eu] ?? "pendente") !== "recusado" && <BotaoOuro variant="outline" className="h-9 text-sm" onClick={() => responder(s, "recusado")}>Não vou poder</BotaoOuro>}
             </div>
           )}
         </article>

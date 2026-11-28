@@ -3,10 +3,10 @@ import { Dialog } from "radix-ui";
 import { ArrowLeft, Plus } from "lucide-react";
 import { BotaoOuro, Campo } from "@/components/Campo";
 import { cn } from "@/lib/utils";
-import { TIPOS, novoId, tipo, useEntidades, type Entidade, type TipoEntidade } from "./dados";
-import { Modal, TituloSecao, campoTexto } from "./ui";
+import { TIPOS, novoId, tipo, useCampanhas, useEntidades, type Entidade, type TipoEntidade } from "./dados";
+import { Modal, Rotulo, TituloSecao, campoTexto } from "./ui";
 
-type Etapa = { passo: "tipo" } | { passo: "nome"; tipo: TipoEntidade } | { passo: "editor"; tipo: TipoEntidade; nome: string; existente?: Entidade };
+type Etapa = { passo: "tipo" } | { passo: "nome"; tipo: TipoEntidade } | { passo: "editor"; tipo: TipoEntidade; nome: string; campanha?: string; existente?: Entidade };
 
 // Eventos nascem na Linha do tempo (precisam de início e fim), por isso ficam fora da escolha de tipo.
 const CRIAVEIS = TIPOS.filter((t) => t.id !== "eventos");
@@ -17,7 +17,7 @@ export function EntidadesCriadas({ campanhaId, comLista }: { campanhaId?: string
   const entidades = campanhaId ? todas.filter((e) => e.campanhaId === campanhaId) : todas;
   const [etapa, setEtapa] = useState<Etapa>();
   const fechar = () => setEtapa(undefined);
-  const salvar = (e: Entidade) => setEntidades((l) => l.some((x) => x.id === e.id) ? l.map((x) => x.id === e.id ? e : x) : [...l, { ...e, campanhaId }]);
+  const salvar = (e: Entidade) => setEntidades((l) => l.some((x) => x.id === e.id) ? l.map((x) => x.id === e.id ? e : x) : [...l, e]);
 
   return (
     <section id="entidades" aria-labelledby="t-entidades" className="scroll-mt-24" data-surge>
@@ -82,25 +82,34 @@ export function EntidadesCriadas({ campanhaId, comLista }: { campanhaId?: string
         </div>
       </Modal>
 
-      {etapa?.passo === "nome" && <NomeEntidade tipoId={etapa.tipo} voltar={() => setEtapa({ passo: "tipo" })} fechar={fechar}
-        avancar={(nome) => setEtapa({ passo: "editor", tipo: etapa.tipo, nome })} />}
+      {etapa?.passo === "nome" && <NomeEntidade tipoId={etapa.tipo} escolherCampanha={!campanhaId} voltar={() => setEtapa({ passo: "tipo" })} fechar={fechar}
+        avancar={(nome, campanha) => setEtapa({ passo: "editor", tipo: etapa.tipo, nome, campanha: campanha ?? campanhaId })} />}
 
       {etapa?.passo === "editor" && <EditorEntidade tipoId={etapa.tipo} nomeInicial={etapa.nome} existente={etapa.existente} fechar={fechar}
-        salvar={(e) => { salvar(e); fechar(); }} />}
+        salvar={(e) => { salvar({ campanhaId: etapa.campanha, ...e }); fechar(); }} />}
     </section>
   );
 }
 
-function NomeEntidade({ tipoId, voltar, fechar, avancar }: { tipoId: TipoEntidade; voltar: () => void; fechar: () => void; avancar: (n: string) => void }) {
+function NomeEntidade({ tipoId, escolherCampanha, voltar, fechar, avancar }: { tipoId: TipoEntidade; escolherCampanha: boolean; voltar: () => void; fechar: () => void; avancar: (n: string, campanha?: string) => void }) {
   const [nome, setNome] = useState("");
+  const [campanhas] = useCampanhas();
+  const [campanha, setCampanha] = useState(campanhas[0]?.id ?? "");
   const t = tipo(tipoId);
   return (
     <Modal aberto aoFechar={fechar} titulo={<span className="flex items-center gap-2"><t.icone className="size-5" /> {t.nome}</span>} descricao="Como essa entidade se chama?">
-      <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); if (nome.trim()) avancar(nome.trim()); }}>
+      <form className="flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); if (nome.trim()) avancar(nome.trim(), escolherCampanha ? campanha : undefined); }}>
         <Campo label="Nome" autoFocus required maxLength={100} value={nome} onChange={(e) => setNome(e.target.value)} />
+        {escolherCampanha && (campanhas.length ? (
+          <Rotulo texto="Campanha">
+            <select className={campoTexto} value={campanha} onChange={(e) => setCampanha(e.target.value)}>
+              {campanhas.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>
+          </Rotulo>
+        ) : <p role="alert" className="m-0 text-base text-sangue-claro">Crie uma campanha primeiro: toda entidade pertence a uma campanha.</p>)}
         <div className="flex justify-between gap-3">
           <BotaoOuro type="button" variant="outline" onClick={voltar}>Voltar</BotaoOuro>
-          <BotaoOuro type="submit">Avançar</BotaoOuro>
+          <BotaoOuro type="submit" disabled={escolherCampanha && !campanha}>Avançar</BotaoOuro>
         </div>
       </form>
     </Modal>

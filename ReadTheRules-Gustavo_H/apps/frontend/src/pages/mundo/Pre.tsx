@@ -25,7 +25,7 @@ export function PaginaIA() {
   return (
     <Pagina titulo="Módulo de IA" texto={`Responde só perguntas sobre ${c.sistema}.`}>
       <div className="mx-auto flex h-[65svh] max-w-3xl flex-col rounded-2xl border border-border bg-card/50 p-4">
-        <ChatIA sistema={c.sistema} className="flex-1" />
+        <ChatIA campanhaId={c.id} sistema={c.sistema} className="flex-1" />
       </div>
     </Pagina>
   );

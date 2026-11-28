@@ -5,6 +5,7 @@ import { BotaoOuro } from "@/components/Campo";
 import { cn } from "@/lib/utils";
 import { iso, novoId, useRoteiros, type Bloco } from "../homeLogada/dados";
 import { Modal, campoTexto } from "../homeLogada/ui";
+import { salvarNota } from "../homeLogada/servidor";
 import { Compendio } from "./Compendio";
 import { ChatIA } from "./IA";
 import { Janela } from "./Janela";
@@ -96,6 +97,7 @@ export function Intra() {
           <div className="mt-3 flex justify-end">
             <BotaoOuro className="h-10 text-sm" disabled={!nota.trim()} onClick={() => {
               marcar({ id: novoId(), tipo: "nota", n: notas + 1, texto: nota.trim() }); setNota(""); fechar("notas");
+              salvarNota(campanha.id, `Sessão ${roteiro.numero} · Nota ${notas + 1}`, nota.trim(), "sessao");
             }}>Salvar nota</BotaoOuro>
           </div>
         </Janela>
@@ -115,7 +117,7 @@ export function Intra() {
           <Bot className="size-4 text-ouro" /> <span className="flex-1 text-left">IA · {campanha.sistema}</span>
           <ChevronDown className={cn("size-4 transition-transform", !ia && "rotate-180")} />
         </button>
-        {ia && <ChatIA sistema={campanha.sistema} className="h-[calc(100%-3rem)] p-3" saudacao="Estou aqui durante a sessão. Pergunte sobre qualquer regra." />}
+        {ia && <ChatIA campanhaId={campanha.id} sistema={campanha.sistema} className="h-[calc(100%-3rem)] p-3" saudacao="Estou aqui durante a sessão. Pergunte sobre qualquer regra." />}
       </div>
 
       <Modal aberto={encerrar} aoFechar={() => setEncerrar(false)} titulo="Encerrar sessão?" descricao="O resumo vai para a Pós Sessão e esta sessão sai da lista de sessões para jogar.">

@@ -1,6 +1,7 @@
 import { Dialog } from "radix-ui";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAvisos } from "./servidor";
 
 type ModalProps = {
   aberto: boolean; aoFechar: () => void; titulo: React.ReactNode; descricao?: React.ReactNode;
@@ -56,3 +57,13 @@ export function TituloSecao({ id, children, extra }: { id: string; children: Rea
 }
 
 export const iniciais = (nome: string) => nome.slice(0, 2).toUpperCase();
+
+// Erros do servidor aparecem aqui, no canto, por alguns segundos.
+export function AvisosServidor() {
+  const avisos = useAvisos();
+  return (
+    <div role="status" aria-live="polite" className="fixed right-4 bottom-4 z-[60] flex max-w-[min(26rem,calc(100vw-2rem))] flex-col gap-2">
+      {avisos.map((a) => <p key={a} className="m-0 rounded-xl border border-sangue-claro/60 bg-card px-4 py-3 font-serif text-base text-texto shadow-[0_18px_50px_-18px_rgba(0,0,0,.9)]">{a}</p>)}
+    </div>
+  );
+}

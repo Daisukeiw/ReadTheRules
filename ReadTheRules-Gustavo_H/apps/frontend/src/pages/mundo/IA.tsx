@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Bot, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motivo, perguntarIA } from "../homeLogada/servidor";
 import { procurarNoCompendio } from "./Compendio";
 
 type Msg = { de: "voce" | "ia"; texto: string };
@@ -8,7 +9,7 @@ type Msg = { de: "voce" | "ia"; texto: string };
 // Palavras que indicam pergunta sobre o jogo; fora disso a IA recusa.
 const DO_JOGO = /regra|magia|feiti|classe|ra[çc]a|combate|ficha|teste|dano|n[íi]vel|mestre|jogador|sess[ãa]o|monstro|criatura|dado|d20|atributo|per[íi]cia|ritual|nex|sanidade|condi[çc][ãa]o|a[çc][ãa]o|turno|iniciativa|arma|armadura|pv|vida|cura|personagem|npc|encontro|xp|experi[êe]ncia|tesouro|campanha/i;
 
-// shortcut: respostas de demonstração montadas no navegador; ligar ao /ia do back-end quando as campanhas daqui existirem na API.
+// Resposta de reserva, montada no navegador, para quando a IA do servidor não responder.
 function responder(sistema: string, pergunta: string): string {
   const item = procurarNoCompendio(sistema, pergunta);
   if (item) return `Sobre ${item.nome} em ${sistema}: ${item.texto ?? ""}${item.info?.length ? `\n(${item.info.join(" · ")})` : ""}`;
@@ -17,7 +18,7 @@ function responder(sistema: string, pergunta: string): string {
   return `Boa pergunta sobre ${sistema}. Na versão final eu respondo com base nas regras do sistema e no material da campanha. Por enquanto estou em modo de demonstração: consulte o Compêndio para a regra exata.`;
 }
 
-export function ChatIA({ sistema, className, saudacao }: { sistema: string; className?: string; saudacao?: string }) {
+export function ChatIA({ campanhaId, sistema, className, saudacao }: { campanhaId: string; sistema: string; className?: string; saudacao?: string }) {
   const [msgs, setMsgs] = useState<Msg[]>([{ de: "ia", texto: saudacao ?? `Olá, mestre. Pergunte qualquer coisa sobre ${sistema}.` }]);
   const [texto, setTexto] = useState("");
   const [pensando, setPensando] = useState(false);
@@ -28,7 +29,10 @@ export function ChatIA({ sistema, className, saudacao }: { sistema: string; clas
     e.preventDefault();
     const p = texto.trim(); if (!p || pensando) return;
     setMsgs((m) => [...m, { de: "voce", texto: p }]); setTexto(""); setPensando(true);
-    window.setTimeout(() => { setMsgs((m) => [...m, { de: "ia", texto: responder(sistema, p) }]); setPensando(false); }, 700);
+    // o back-end não sabe o sistema escolhido na tela, então a pergunta leva a instrução junto
+    perguntarIA(campanhaId, `(Sistema da campanha: ${sistema}. Responda apenas sobre esse sistema e sobre esta campanha; recuse outros assuntos.)\n${p}`)
+      .catch((e: Error) => `A IA do servidor não respondeu${motivo(e)}. Resposta de demonstração:\n${responder(sistema, p)}`)
+      .then((r) => { setMsgs((m) => [...m, { de: "ia", texto: r }]); setPensando(false); });
   };
 
   return (

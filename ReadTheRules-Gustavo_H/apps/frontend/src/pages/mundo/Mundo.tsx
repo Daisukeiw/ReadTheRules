@@ -4,7 +4,8 @@ import { BookMarked, Bot, CalendarDays, Feather, GitFork, History, Mountain, Plu
 import { BotaoOuro } from "@/components/Campo";
 import { reduzMovimento } from "@/lib/gsap";
 import { cn } from "@/lib/utils";
-import { nomeJogador, useCampanhas, useRoteiros, useSessoes, type Campanha, type Roteiro } from "../homeLogada/dados";
+import { nomeJogador, useCampanhas, useEntidades, useRoteiros, useSessoes, type Campanha, type Roteiro } from "../homeLogada/dados";
+import { AvisosServidor } from "../homeLogada/ui";
 import { BarraLateral, Carregando, Foto, Sair, Simbolo, Vazio, type Ferramenta } from "./Moldura";
 
 type Secao = "pre" | "intra" | "pos";
@@ -25,7 +26,9 @@ export const useCampanha = () => useOutletContext<Campanha>();
 // Página da campanha ("Escrever Mundo"): barra superior com as seções e, depois de escolher uma, a barra lateral.
 export default function Mundo() {
   const { id } = useParams();
-  const [campanhas] = useCampanhas();
+  const [campanhas, , prontas] = useCampanhas();
+  // as páginas de dentro só abrem quando os dados já chegaram do servidor
+  const pronto = [prontas, useRoteiros()[2], useSessoes()[2], useEntidades()[2]].every(Boolean);
   const campanha = campanhas.find((c) => c.id === id);
   const { pathname } = useLocation();
   const nav = useNavigate();
@@ -47,9 +50,12 @@ export default function Mundo() {
     }, reduzMovimento() ? 250 : 1400);
   };
 
+  if (!pronto) return (
+    <div className="grid min-h-svh place-items-center bg-noite font-display text-pergaminho">Abrindo a campanha…</div>
+  );
   if (!campanha) return (
     <div className="grid min-h-svh place-items-center bg-noite p-6 font-serif text-texto">
-      <Vazio icone={Mountain} titulo="Campanha não encontrada" texto="Ela pode ter sido apagada deste navegador." acao={<Link to="/" className="font-display text-ouro">Voltar ao início</Link>} />
+      <Vazio icone={Mountain} titulo="Campanha não encontrada" texto="Ela pode ter sido apagada, ou você não faz parte dela." acao={<Link to="/" className="font-display text-ouro">Voltar ao início</Link>} />
     </div>
   );
 
@@ -79,6 +85,7 @@ export default function Mundo() {
       <main className={cn("pt-16 transition-[padding] duration-300", secao === "pre" && "pl-[4.5rem] sm:pl-24")}>
         <Outlet context={campanha} />
       </main>
+      <AvisosServidor />
     </div>
   );
 }

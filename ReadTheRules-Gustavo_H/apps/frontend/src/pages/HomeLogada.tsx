@@ -4,6 +4,7 @@ import { useCampanhas } from "./homeLogada/dados";
 import { CampanhasCriadas } from "./homeLogada/Campanhas";
 import { EntidadesCriadas } from "./homeLogada/Entidades";
 import { CalendarioColaborativo } from "./homeLogada/Calendario";
+import { AvisosServidor } from "./homeLogada/ui";
 import { Foto, Sair, Simbolo } from "./mundo/Moldura";
 
 // Home depois do login: sem barra superior de seções (elas ficam dentro de cada campanha).
@@ -32,6 +33,7 @@ export default function HomeLogada() {
         <EntidadesCriadas />
         <CalendarioColaborativo />
       </div>
+      <AvisosServidor />
     </div>
   );
 }
