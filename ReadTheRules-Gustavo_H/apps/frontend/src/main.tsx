@@ -7,13 +7,14 @@ import { getToken } from "./api";
 import Home from "./pages/Home";
 import Auth from "./pages/Auth";
 import Campanhas from "./pages/Campanhas";
+import HomeLogada from "./pages/HomeLogada";
 import Campanha from "./pages/Campanha";
 import RedefinirSenha from "./pages/RedefinirSenha";
 import "./styles.css";
 
 const Privada = ({ children }: { children: React.ReactElement }) => (getToken() ? children : <Navigate to="/login" />);
-// Sem login, "/" é a apresentação do site; com login, a lista de campanhas.
-const Inicio = () => (getToken() ? <Campanhas /> : <Home />);
+// Sem login, "/" é a apresentação do site; com login, a HomePage Logada.
+const Inicio = () => (getToken() ? <HomeLogada /> : <Home />);
 
 // Lenis faz a rolagem suave e avisa o ScrollTrigger a cada quadro.
 function RolagemSuave() {
@@ -37,6 +38,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <Route path="/login" element={<Auth />} />
       <Route path="/cadastro" element={<Auth />} />
       <Route path="/redefinir-senha" element={<RedefinirSenha />} />
+      <Route path="/campanhas" element={<Privada><Campanhas /></Privada>} />
       <Route path="/campanhas/:id" element={<Privada><Campanha /></Privada>} />
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

@@ -79,6 +79,7 @@ input { caret-color: var(--primary); }
 input:focus-visible { outline: none; } /* o campo já tem o anel dourado do shadcn */
 
 @keyframes surgir { from { opacity: 0; transform: translateY(8px); } }
+@keyframes aparecer { from { opacity: 0; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
