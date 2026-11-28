@@ -3,15 +3,21 @@ import { Dialog } from "radix-ui";
 import { ArrowLeft, Plus } from "lucide-react";
 import { BotaoOuro, Campo } from "@/components/Campo";
 import { cn } from "@/lib/utils";
-import { TIPOS, novoId, tipo, type Entidade, type TipoEntidade } from "./dados";
+import { TIPOS, novoId, tipo, useEntidades, type Entidade, type TipoEntidade } from "./dados";
 import { Modal, TituloSecao, campoTexto } from "./ui";
 
-type Props = { entidades: Entidade[]; criar: (e: Entidade) => void };
-type Etapa = { passo: "tipo" } | { passo: "nome"; tipo: TipoEntidade } | { passo: "editor"; tipo: TipoEntidade; nome: string };
+type Etapa = { passo: "tipo" } | { passo: "nome"; tipo: TipoEntidade } | { passo: "editor"; tipo: TipoEntidade; nome: string; existente?: Entidade };
 
-export function EntidadesCriadas({ entidades, criar }: Props) {
+// Eventos nascem na Linha do tempo (precisam de início e fim), por isso ficam fora da escolha de tipo.
+const CRIAVEIS = TIPOS.filter((t) => t.id !== "eventos");
+
+// Com campanhaId, conta e cria entidades só daquela campanha e mostra a lista delas.
+export function EntidadesCriadas({ campanhaId, comLista }: { campanhaId?: string; comLista?: boolean }) {
+  const [todas, setEntidades] = useEntidades();
+  const entidades = campanhaId ? todas.filter((e) => e.campanhaId === campanhaId) : todas;
   const [etapa, setEtapa] = useState<Etapa>();
   const fechar = () => setEtapa(undefined);
+  const salvar = (e: Entidade) => setEntidades((l) => l.some((x) => x.id === e.id) ? l.map((x) => x.id === e.id ? e : x) : [...l, { ...e, campanhaId }]);
 
   return (
     <section id="entidades" aria-labelledby="t-entidades" className="scroll-mt-24" data-surge>
@@ -35,11 +41,36 @@ export function EntidadesCriadas({ entidades, criar }: Props) {
         </div>
       </div>
 
+      {comLista && (
+        <div className="mt-8 flex flex-col gap-6">
+          {TIPOS.map((t) => {
+            const doTipo = entidades.filter((e) => e.tipo === t.id);
+            if (!doTipo.length) return null;
+            return (
+              <div key={t.id}>
+                <h3 className="mb-3 flex items-center gap-2 font-display text-base text-pergaminho"><t.icone className="size-4 text-ouro" /> {t.nome}</h3>
+                <ul className="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 p-0">
+                  {doTipo.map((e) => (
+                    <li key={e.id}>
+                      <button onClick={() => setEtapa({ passo: "editor", tipo: e.tipo, nome: e.nome, existente: e })}
+                        className="flex w-full cursor-pointer flex-col gap-1 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-ouro/50">
+                        <span className="font-display text-base text-texto">{e.nome}</span>
+                        <span className="line-clamp-2 text-sm text-texto/55">{e.texto || (e.evento ? `Do ano ${e.evento.inicio} ao ${e.evento.fim}` : "Sem texto ainda.")}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <Modal aberto={etapa?.passo === "tipo"} aoFechar={fechar} titulo="Nova entidade" descricao="Escolha o tipo de entidade.">
         {/* 2 linhas x 4 colunas; as colunas que não cabem ficam escondidas à direita */}
         <div className="relative">
           <div className="grid snap-x grid-flow-col grid-rows-2 auto-cols-[44%] gap-3 overflow-x-auto pb-3 [scrollbar-width:thin]">
-            {TIPOS.map(({ id, nome, icone: Icone }) => (
+            {CRIAVEIS.map(({ id, nome, icone: Icone }) => (
               <button key={id} onClick={() => setEtapa({ passo: "nome", tipo: id })}
                 className="flex cursor-pointer snap-start items-center gap-3 rounded-xl border border-border bg-input/50 p-4 text-left transition-colors hover:border-ouro/60 hover:bg-input">
                 <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-ouro/30 bg-ouro/10"><Icone className="size-5 text-ouro" /></span>
@@ -54,8 +85,8 @@ export function EntidadesCriadas({ entidades, criar }: Props) {
       {etapa?.passo === "nome" && <NomeEntidade tipoId={etapa.tipo} voltar={() => setEtapa({ passo: "tipo" })} fechar={fechar}
         avancar={(nome) => setEtapa({ passo: "editor", tipo: etapa.tipo, nome })} />}
 
-      {etapa?.passo === "editor" && <EditorEntidade tipoId={etapa.tipo} nomeInicial={etapa.nome} fechar={fechar}
-        salvar={(e) => { criar(e); fechar(); }} />}
+      {etapa?.passo === "editor" && <EditorEntidade tipoId={etapa.tipo} nomeInicial={etapa.nome} existente={etapa.existente} fechar={fechar}
+        salvar={(e) => { salvar(e); fechar(); }} />}
     </section>
   );
 }
@@ -76,11 +107,11 @@ function NomeEntidade({ tipoId, voltar, fechar, avancar }: { tipoId: TipoEntidad
   );
 }
 
-function EditorEntidade({ tipoId, nomeInicial, fechar, salvar }: { tipoId: TipoEntidade; nomeInicial: string; fechar: () => void; salvar: (e: Entidade) => void }) {
+function EditorEntidade({ tipoId, nomeInicial, existente, fechar, salvar }: { tipoId: TipoEntidade; nomeInicial: string; existente?: Entidade; fechar: () => void; salvar: (e: Entidade) => void }) {
   const t = tipo(tipoId);
   const [nome, setNome] = useState(nomeInicial);
-  const [texto, setTexto] = useState("");
-  const [respostas, setRespostas] = useState<Record<string, string>>({});
+  const [texto, setTexto] = useState(existente?.texto ?? "");
+  const [respostas, setRespostas] = useState<Record<string, string>>(existente?.respostas ?? {});
   const palavras = texto.trim() ? texto.trim().split(/\s+/).length : 0;
 
   return (
@@ -123,7 +154,7 @@ function EditorEntidade({ tipoId, nomeInicial, fechar, salvar }: { tipoId: TipoE
 
             <div className="sticky bottom-0 mt-6 flex justify-end gap-3 bg-gradient-to-t from-noite from-60% py-4">
               <BotaoOuro variant="outline" onClick={fechar}>Cancelar</BotaoOuro>
-              <BotaoOuro disabled={!nome.trim()} onClick={() => salvar({ id: novoId(), tipo: tipoId, nome: nome.trim(), texto, respostas })}>Salvar entidade</BotaoOuro>
+              <BotaoOuro disabled={!nome.trim()} onClick={() => salvar({ ...existente, id: existente?.id ?? novoId(), tipo: tipoId, nome: nome.trim(), texto, respostas })}>Salvar entidade</BotaoOuro>
             </div>
           </div>
         </Dialog.Content>

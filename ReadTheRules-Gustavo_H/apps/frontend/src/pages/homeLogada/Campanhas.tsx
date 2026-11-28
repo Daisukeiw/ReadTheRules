@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, ImagePlus, Mountain, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Feather, ImagePlus, Mountain, Plus } from "lucide-react";
 import { BotaoOuro, Campo } from "@/components/Campo";
 import { cn } from "@/lib/utils";
 import { JOGADORES, SISTEMAS, lerImagem, nomeJogador, novoId, type Campanha } from "./dados";
@@ -9,6 +10,8 @@ type Props = { campanhas: Campanha[]; criar: (c: Campanha) => void };
 
 export function CampanhasCriadas({ campanhas, criar }: Props) {
   const [aberto, setAberto] = useState(false);
+  const [detalhe, setDetalhe] = useState<Campanha>();
+  const nav = useNavigate();
   const trilho = useRef<HTMLDivElement>(null);
   const rolar = (lado: 1 | -1) => trilho.current?.scrollBy({ left: lado * 300, behavior: "smooth" });
 
@@ -36,7 +39,7 @@ export function CampanhasCriadas({ campanhas, criar }: Props) {
         ) : (
           <>
             <div ref={trilho} className="-mx-1 flex snap-x snap-mandatory gap-5 overflow-x-auto px-1 pb-3 [scrollbar-width:thin]">
-              {campanhas.map((c) => <CartaoCampanha key={c.id} c={c} />)}
+              {campanhas.map((c) => <CartaoCampanha key={c.id} c={c} abrir={() => setDetalhe(c)} />)}
             </div>
             <div className="mt-4 flex justify-end">
               <BotaoOuro onClick={() => setAberto(true)}><Plus /> Criar nova campanha</BotaoOuro>
@@ -44,6 +47,21 @@ export function CampanhasCriadas({ campanhas, criar }: Props) {
           </>
         )}
       </div>
+
+      <Modal aberto={!!detalhe} aoFechar={() => setDetalhe(undefined)} titulo={detalhe?.nome} descricao={detalhe && `${detalhe.sistema} · Nível ${detalhe.nivel}`} className="w-[min(92vw,560px)]">
+        {detalhe && (
+          <div className="flex flex-col gap-4">
+            <div className="relative h-44 overflow-hidden rounded-xl bg-[linear-gradient(135deg,#2a2a35,#1f1f29)]">
+              {detalhe.imagem ? <img src={detalhe.imagem} alt="" className="size-full object-cover" /> : <Mountain aria-hidden className="absolute inset-0 m-auto size-16 text-ouro/40" strokeWidth={1.25} />}
+            </div>
+            <p className="m-0 text-lg leading-snug text-texto/85">{detalhe.descricao || "Sem descrição."}</p>
+            <p className="m-0 text-base text-texto/60">Jogadores: {detalhe.jogadores.length ? detalhe.jogadores.map(nomeJogador).join(", ") : "nenhum ainda"}</p>
+            <div className="mt-2 flex justify-end">
+              <BotaoOuro onClick={() => nav(`/mundo/${detalhe.id}`)}><Feather /> Escrever Mundo</BotaoOuro>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <NovaCampanha aberto={aberto} aoFechar={() => setAberto(false)} criar={(c) => { criar(c); setAberto(false); }} />
     </section>
@@ -56,9 +74,10 @@ function Seta({ rotulo, ...p }: React.ComponentProps<"button"> & { rotulo: strin
   );
 }
 
-function CartaoCampanha({ c }: { c: Campanha }) {
+function CartaoCampanha({ c, abrir }: { c: Campanha; abrir: () => void }) {
   return (
-    <article className="group flex w-[270px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,transform] duration-200 hover:-translate-y-1 hover:border-ouro/50">
+    <article onClick={abrir} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), abrir())} role="button" tabIndex={0} aria-label={`Abrir ${c.nome}`}
+      className="group flex cursor-pointer w-[270px] shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border bg-card transition-[border-color,transform] duration-200 hover:-translate-y-1 hover:border-ouro/50">
       <div className="relative h-36 overflow-hidden bg-[linear-gradient(135deg,#2a2a35,#1f1f29)]">
         {c.imagem
           ? <img src={c.imagem} alt="" className="size-full object-cover transition-transform duration-500 group-hover:scale-105" />

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Ban, CalendarCheck, CalendarPlus, CalendarX, Lock, ChevronLeft, ChevronRight, Clock, MapPin, Users } from "lucide-react";
 import { BotaoOuro, Campo } from "@/components/Campo";
 import { cn } from "@/lib/utils";
-import { JOGADORES, iso, nomeJogador, novoId, usePersistido, type Campanha, type Sessao, type StatusConvite } from "./dados";
+import { Link } from "react-router-dom";
+import { JOGADORES, iso, nomeJogador, novoId, useCampanhas, useImpedimentos, usePersistido, useRoteiros, useSessoes, type Campanha, type Roteiro, type Sessao, type StatusConvite } from "./dados";
 import { Modal, Rotulo, TituloSecao, campoTexto } from "./ui";
 
 const SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -19,13 +20,14 @@ const STATUS: Record<StatusConvite, { rotulo: string; cor: string }> = {
   recusado: { rotulo: "Recusado", cor: "border-sangue-claro/50 text-sangue-claro" },
 };
 
-type Props = {
-  campanhas: Campanha[];
-  sessoes: Sessao[]; setSessoes: React.Dispatch<React.SetStateAction<Sessao[]>>;
-  impedimentos: string[]; setImpedimentos: React.Dispatch<React.SetStateAction<string[]>>;
-};
-
-export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedimentos, setImpedimentos }: Props) {
+// Com campanhaId, mostra só as sessões daquela campanha (página da campanha); sem ele, todas (home).
+export function CalendarioColaborativo({ campanhaId }: { campanhaId?: string }) {
+  const [todasCampanhas] = useCampanhas();
+  const [todasSessoes, setSessoes] = useSessoes();
+  const [impedimentos, setImpedimentos] = useImpedimentos();
+  const [roteiros] = useRoteiros();
+  const campanhas = campanhaId ? todasCampanhas.filter((c) => c.id === campanhaId) : todasCampanhas;
+  const sessoes = campanhaId ? todasSessoes.filter((s) => s.campanhaId === campanhaId) : todasSessoes;
   const hoje = iso(new Date());
   const [mes, setMes] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [sel, setSel] = useState<string>();
@@ -152,7 +154,7 @@ export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedim
 
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
             <div className="min-w-0 flex-1">
-              {sel && <DetalhesDia dia={sel} sessoes={doDia(sel)} campanha={campanha} visao={visao} responder={responder} />}
+              {sel && <DetalhesDia dia={sel} sessoes={doDia(sel)} campanha={campanha} visao={visao} responder={responder} roteiros={roteiros} />}
               {!sel && <p className="m-0 text-base text-texto/60">{mestre ? "Clique em um dia para ver ou marcar sessões. Clique no nome de um dia da semana para desativar ou reativar todos eles." : `Você está vendo o calendário de ${nomeJogador(visao)}. Clique em um dia com convite para responder.`}</p>}
             </div>
             {mestre && (
@@ -214,8 +216,8 @@ function Convidados({ convites }: { convites: Sessao["convites"] }) {
   );
 }
 
-function DetalhesDia({ dia, sessoes, campanha, visao, responder }: {
-  dia: string; sessoes: Sessao[]; campanha: (id: string) => Campanha | undefined; visao: string; responder: (s: Sessao, st: StatusConvite) => void;
+function DetalhesDia({ dia, sessoes, campanha, visao, responder, roteiros }: {
+  dia: string; sessoes: Sessao[]; campanha: (id: string) => Campanha | undefined; visao: string; responder: (s: Sessao, st: StatusConvite) => void; roteiros: Roteiro[];
 }) {
   if (!sessoes.length) return <p className="m-0 text-base text-texto/70">{dataBr(dia)}: nenhuma sessão neste dia.</p>;
   return (
@@ -231,6 +233,11 @@ function DetalhesDia({ dia, sessoes, campanha, visao, responder }: {
             <span className="flex items-center gap-1"><Clock className="size-4" />{s.inicio} às {s.fim}</span>
           </p>
           {s.sinopse && <p className="mt-2 mb-0 text-base">{s.sinopse}</p>}
+          {visao === "mestre" && roteiros.filter((r) => r.sessaoId === s.id).map((r) => (
+            <Link key={r.id} to={`/mundo/${r.campanhaId}/sessao/${r.id}`} className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-ouro/40 px-3 py-0.5 font-display text-xs text-ouro hover:bg-ouro/10">
+              Roteiro anexado: {r.titulo || `Sessão ${r.numero}`} (só você vê)
+            </Link>
+          ))}
           {visao === "mestre" ? <Convidados convites={s.convites} /> : (
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <span className={cn("rounded-full border px-2.5 py-0.5 text-sm", STATUS[s.convites[visao]].cor)}>{STATUS[s.convites[visao]].rotulo}</span>

@@ -1,12 +1,26 @@
-import { useEffect, useState } from "react";
-import { Gem, Handshake, Lightbulb, MapPin, PawPrint, Sparkles, UserRound, type LucideIcon } from "lucide-react";
+import { useCallback, useSyncExternalStore } from "react";
+import { CalendarRange, Gem, Handshake, Lightbulb, MapPin, PawPrint, Sparkles, UserRound, type LucideIcon } from "lucide-react";
 
 // shortcut: tudo aqui é mockado e salvo no localStorage do navegador; trocar pelas rotas da API quando o back tiver esses campos.
 
 export type Jogador = { id: string; nome: string };
 export type Campanha = { id: string; nome: string; sistema: string; nivel: number; descricao: string; imagem?: string; jogadores: string[] };
-export type TipoEntidade = "aliancas" | "conceito" | "criaturas" | "deuses" | "itens" | "locais" | "personagem";
-export type Entidade = { id: string; tipo: TipoEntidade; nome: string; texto: string; respostas: Record<string, string> };
+export type TipoEntidade = "aliancas" | "conceito" | "criaturas" | "deuses" | "eventos" | "itens" | "locais" | "personagem";
+// Eventos são os acontecimentos da linha do tempo: além do texto, têm início, fim e cor.
+export type Entidade = {
+  id: string; tipo: TipoEntidade; nome: string; texto: string; respostas: Record<string, string>;
+  campanhaId?: string; evento?: { inicio: number; fim: number; cor: string; imagem?: string };
+};
+
+// Bloco do resumo escrito durante a sessão (Intra Sessão).
+export type Bloco = { id: string; tipo: "texto"; texto: string } | { id: string; tipo: "combate"; estado: "inicio" | "fim" } | { id: string; tipo: "nota"; n: number; texto: string };
+// Sessão escrita pelo mestre (roteiro). Só o mestre vê; pode ser anexada a um dia marcado no calendário.
+export type Roteiro = {
+  id: string; campanhaId: string; numero: number; titulo: string; texto: string; respostas: Record<string, string>;
+  sessaoId?: string; status: "rascunho" | "encerrada"; resumo: Bloco[]; encerradaEm?: string;
+};
+export type Ideia = { id: string; campanhaId: string; x: number; y: number; texto: string; pai?: string };
+export type Arquivo = { id: string; campanhaId: string; nome: string; tamanho: number; enviadoEm: string; texto?: string };
 export type StatusConvite = "pendente" | "confirmado" | "recusado";
 export type Sessao = {
   id: string; data: string; numero: number; campanhaId: string; local: string;
@@ -49,6 +63,12 @@ export const TIPOS: { id: TipoEntidade; nome: string; icone: LucideIcon; pergunt
     "Como seus templos e clérigos se apresentam?",
     "Com qual divindade tem rixa ou aliança antiga?",
     "Qual milagre (ou catástrofe) recente é atribuído a ele?",
+  ] },
+  { id: "eventos", nome: "Eventos", icone: CalendarRange, perguntas: [
+    "Quem esteve no centro deste acontecimento?",
+    "O que o mundo perdeu ou ganhou com ele?",
+    "Como as pessoas comuns contam essa história hoje?",
+    "Que vestígio físico ainda existe dele?",
   ] },
   { id: "itens", nome: "Itens", icone: Gem, perguntas: [
     "Qual a aparência, e que detalhe chama a atenção primeiro?",
@@ -95,7 +115,23 @@ const ENTIDADES: Entidade[] = ([
   ["deuses", "Vaelor, o Vigia"], ["itens", "Coroa de Cinzas"], ["itens", "Lanterna sem Fundo"],
   ["locais", "Arquivo Silencioso"], ["locais", "Pico de Ferro"], ["locais", "Templo Afundado"], ["locais", "Vila Brejo-Seco"],
   ["personagem", "Lady Mirela"], ["personagem", "Irmão Tolvo"],
-] as const).map(([t, nome]) => ({ id: novoId(), tipo: t, nome, texto: "", respostas: {} }));
+] as const).map(([t, nome]): Entidade => ({ id: novoId(), tipo: t, nome, texto: "", respostas: {}, campanhaId: "c1" })).concat(([
+  ["A Queda de Valdris", 12, 20, "sangue"], ["Era da Fuligem", 20, 48, "ouro"], ["Coroação de Lady Mirela", 55, 58, "violeta"], ["Retorno dos Dragões", 61, 64, "esmeralda"],
+] as const).map(([nome, inicio, fim, cor]) => ({ id: novoId(), tipo: "eventos" as const, nome, texto: "", respostas: {}, campanhaId: "c1", evento: { inicio, fim, cor } })));
+
+const ROTEIROS: Roteiro[] = [
+  { id: "r3", campanhaId: "c1", numero: 3, titulo: "A forja abandonada", sessaoId: "s1", status: "encerrada", encerradaEm: emDias(-9),
+    texto: "O grupo chega ao Pico de Ferro.", respostas: {}, resumo: [
+      { id: "b1", tipo: "texto", texto: "O grupo subiu o Pico de Ferro sob neve fina. Duda convenceu o ferreiro anão a abrir a forja em troca de carvão." },
+      { id: "b2", tipo: "combate", estado: "inicio" },
+      { id: "b3", tipo: "texto", texto: "Três sapos-vigia atacaram na entrada. Caio caiu a 0 PV e foi salvo por Ayla." },
+      { id: "b4", tipo: "combate", estado: "fim" },
+      { id: "b5", tipo: "nota", n: 1, texto: "O ferreiro sabe quem roubou a Coroa. Revelar na sessão 5." },
+      { id: "b6", tipo: "texto", texto: "Na forja, encontraram o molde da Coroa de Cinzas, ainda quente." },
+    ] },
+  { id: "r4", campanhaId: "c1", numero: 4, titulo: "O chamado da Coroa", sessaoId: "s2", status: "rascunho", resumo: [],
+    texto: "A Coroa começa a sussurrar para quem dormir perto dela.", respostas: { combate: "Talvez", "Qual o objetivo dos jogadores nesta sessão?": "Descobrir quem forjou a Coroa." } },
+];
 
 const SESSOES: Sessao[] = [
   { id: "s1", data: emDias(-9), numero: 3, campanhaId: "c1", local: "Casa do Bruno", inicio: "19:00", fim: "23:00", nivel: 5,
@@ -106,19 +142,41 @@ const SESSOES: Sessao[] = [
     sinopse: "Primeira noite no Arquivo Silencioso.", convites: { enzo: "pendente", lia: "pendente", bruno: "confirmado" } },
 ];
 
-// Estado que sobrevive ao recarregar a página.
+// Estado que sobrevive ao recarregar a página e fica igual em todos os componentes que usam a mesma chave.
+const cache = new Map<string, unknown>();
+const ouvintes = new Map<string, Set<() => void>>();
+function ler<T>(chave: string, inicial: T): T {
+  if (!cache.has(chave)) {
+    try { const s = localStorage.getItem(chave); cache.set(chave, s ? JSON.parse(s) : inicial); } catch { cache.set(chave, inicial); }
+  }
+  return cache.get(chave) as T;
+}
 export function usePersistido<T>(chave: string, inicial: T) {
-  const [valor, setValor] = useState<T>(() => {
-    try { const s = localStorage.getItem(chave); return s ? JSON.parse(s) : inicial; } catch { return inicial; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem(chave, JSON.stringify(valor)); } catch { /* cota cheia: segue só em memória */ }
-  }, [chave, valor]);
+  const valor = useSyncExternalStore((avisar) => {
+    const lista = ouvintes.get(chave) ?? new Set();
+    ouvintes.set(chave, lista); lista.add(avisar);
+    return () => { lista.delete(avisar); };
+  }, () => ler(chave, inicial));
+  const setValor = useCallback((v: T | ((anterior: T) => T)) => {
+    const novo = typeof v === "function" ? (v as (a: T) => T)(ler(chave, inicial)) : v;
+    cache.set(chave, novo);
+    try { localStorage.setItem(chave, JSON.stringify(novo)); } catch { /* cota cheia: segue só em memória */ }
+    ouvintes.get(chave)?.forEach((f) => f());
+  }, [chave]); // eslint-disable-line react-hooks/exhaustive-deps
   return [valor, setValor] as const;
 }
 
 export const useCampanhas = () => usePersistido("rtr-campanhas", CAMPANHAS);
-export const useEntidades = () => usePersistido("rtr-entidades", ENTIDADES);
+export const useEntidades = () => usePersistido("rtr-entidades-v2", ENTIDADES);
+export const useRoteiros = () => usePersistido("rtr-roteiros", ROTEIROS);
+export const useIdeias = () => usePersistido<Ideia[]>("rtr-ideias", [
+  { id: "i1", campanhaId: "c1", x: 900, y: 520, texto: "Quem roubou a Coroa?" },
+  { id: "i2", campanhaId: "c1", x: 620, y: 360, texto: "O ferreiro anão sabe", pai: "i1" },
+  { id: "i3", campanhaId: "c1", x: 1180, y: 360, texto: "Lady Mirela tem motivo", pai: "i1" },
+  { id: "i4", campanhaId: "c1", x: 900, y: 720, texto: "Dragões voltam quando a Coroa é usada", pai: "i1" },
+]);
+export const useArquivos = () => usePersistido<Arquivo[]>("rtr-arquivos", []);
+export const usarFoto = () => usePersistido<string | null>("rtr-foto", null);
 export const useSessoes = () => usePersistido("rtr-sessoes", SESSOES);
 export const useImpedimentos = () => usePersistido<string[]>("rtr-impedimentos", []);
 
