@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { Ban, CalendarPlus, ChevronLeft, ChevronRight, Clock, MapPin, Users } from "lucide-react";
+import { Ban, CalendarCheck, CalendarPlus, CalendarX, Lock, ChevronLeft, ChevronRight, Clock, MapPin, Users } from "lucide-react";
 import { BotaoOuro, Campo } from "@/components/Campo";
 import { cn } from "@/lib/utils";
-import { JOGADORES, iso, nomeJogador, novoId, type Campanha, type Sessao, type StatusConvite } from "./dados";
+import { JOGADORES, iso, nomeJogador, novoId, usePersistido, type Campanha, type Sessao, type StatusConvite } from "./dados";
 import { Modal, Rotulo, TituloSecao, campoTexto } from "./ui";
 
 const SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const SEMANA_PLURAL = ["domingos", "segundas", "terças", "quartas", "quintas", "sextas", "sábados"];
+
+// Dias desativados pelo mestre: dias da semana inteiros, dias soltos e as exceções reativadas de um dia da semana desativado.
+type Bloqueios = { semana: number[]; dias: string[]; liberados: string[] };
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const dataBr = (d: string) => d.split("-").reverse().join("/");
 
@@ -30,6 +34,21 @@ export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedim
   const [marcar, setMarcar] = useState(false);
   const [convidar, setConvidar] = useState<Sessao>();
   const [verConvidados, setVerConvidados] = useState(false);
+  const [bloq, setBloq] = usePersistido<Bloqueios>("rtr-bloqueios", { semana: [], dias: [], liberados: [] });
+
+  const passado = (k: string) => k < hoje;
+  const semanaDe = (k: string) => new Date(k + "T12:00").getDay();
+  const desativado = (k: string) => bloq.dias.includes(k) || (bloq.semana.includes(semanaDe(k)) && !bloq.liberados.includes(k));
+  const indisponivel = (k: string) => passado(k) || desativado(k);
+  const sem = (l: string[], k: string) => l.filter((x) => x !== k);
+  const desativar = (k: string) => setBloq({ ...bloq, dias: [...sem(bloq.dias, k), k], liberados: sem(bloq.liberados, k) });
+  const ativar = (k: string) => setBloq({ ...bloq, dias: sem(bloq.dias, k), liberados: bloq.semana.includes(semanaDe(k)) ? [...sem(bloq.liberados, k), k] : bloq.liberados });
+  // Alternar um dia da semana inteiro zera as exceções daquele dia da semana.
+  const alternarSemana = (n: number) => setBloq({
+    semana: bloq.semana.includes(n) ? bloq.semana.filter((x) => x !== n) : [...bloq.semana, n],
+    dias: bloq.dias.filter((k) => semanaDe(k) !== n),
+    liberados: bloq.liberados.filter((k) => semanaDe(k) !== n),
+  });
 
   const mestre = visao === "mestre";
   const visiveis = mestre ? sessoes : sessoes.filter((s) => s.convites[visao]);
@@ -42,7 +61,13 @@ export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedim
   const dias = Array.from({ length: total }, (_, i) => new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + i));
   const mudarMes = (n: number) => { setMes(new Date(mes.getFullYear(), mes.getMonth() + n, 1)); setSel(undefined); };
 
-  const exigirDia = (acao: () => void) => () => sel ? (setAviso(""), acao()) : setAviso("Selecione um dia para poder marcar sua sessão.");
+  // Ações sobre o dia selecionado; dias que já passaram nunca podem ser usados nem reativados.
+  const exigirDia = (acao: (k: string) => void, livre = false) => () => {
+    if (!sel) return setAviso("Selecione um dia para poder marcar sua sessão.");
+    if (passado(sel)) return setAviso("Esse dia já passou e não pode ser alterado.");
+    if (!livre && desativado(sel)) return setAviso("Esse dia está desativado. Ative-o para usar.");
+    setAviso(""); acao(sel);
+  };
   const responder = (s: Sessao, st: StatusConvite) => setSessoes((l) => l.map((x) => x.id === s.id ? { ...x, convites: { ...x.convites, [visao]: st } } : x));
 
   return (
@@ -73,7 +98,14 @@ export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedim
 
           <div className="overflow-hidden rounded-xl border border-border">
             <div className="grid grid-cols-7 bg-ouro">
-              {SEMANA.map((d) => <div key={d} className="py-2 text-center font-display text-xs font-semibold tracking-wider text-noite uppercase sm:text-sm">{d}</div>)}
+              {SEMANA.map((d, n) => {
+                const off = bloq.semana.includes(n);
+                const cls = cn("py-2 text-center font-display text-xs font-semibold tracking-wider text-noite uppercase sm:text-sm", off && "line-through opacity-50");
+                return mestre ? (
+                  <button key={d} onClick={() => alternarSemana(n)} aria-pressed={off} title={`${off ? "Reativar" : "Desativar"} todas as ${SEMANA_PLURAL[n]}`}
+                    className={cn(cls, "cursor-pointer border-0 bg-transparent hover:bg-black/10")}>{d}</button>
+                ) : <div key={d} className={cls}>{d}</div>;
+              })}
             </div>
             <div role="grid" aria-label="Dias do mês" className="grid grid-cols-7 gap-px bg-border">
               {dias.map((d) => {
@@ -81,15 +113,18 @@ export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedim
                 const fora = d.getMonth() !== mes.getMonth();
                 const ss = doDia(k);
                 const bloqueado = mestre && impedimentos.includes(k);
+                const off = mestre && !fora && !passado(k) && desativado(k);
                 return (
                   <button
                     key={k} role="gridcell" aria-selected={sel === k}
-                    aria-label={`${d.getDate()} de ${MESES[d.getMonth()]}${ss.length ? `, ${ss.length} sessão` : ""}${bloqueado ? ", impedimento" : ""}`}
+                    aria-label={`${d.getDate()} de ${MESES[d.getMonth()]}${ss.length ? `, ${ss.length} sessão` : ""}${bloqueado ? ", impedimento" : ""}${off ? ", desativado" : ""}${passado(k) ? ", já passou" : ""}`}
                     onClick={() => { setSel(sel === k ? undefined : k); setAviso(""); }}
                     className={cn(
                       "relative flex min-h-16 cursor-pointer flex-col items-stretch gap-1 border-0 bg-card p-1 text-left transition-colors sm:min-h-24 sm:p-2",
                       "hover:bg-input",
                       fora && "bg-noite/70 text-texto/30",
+                      !fora && passado(k) && "bg-noite/60 text-texto/35",
+                      off && "bg-noite text-texto/35",
                       ss.length > 0 && "bg-sangue/25 hover:bg-sangue/35",
                       bloqueado && "bg-[repeating-linear-gradient(135deg,#1f1f29_0_8px,#2a1a1f_8px_16px)]",
                       sel === k && "z-10 outline-2 -outline-offset-2 outline-ouro",
@@ -107,6 +142,7 @@ export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedim
                         </span>
                       );
                     })}
+                    {off && <span className="flex items-center gap-1 text-[0.6rem] text-texto/45 sm:text-xs"><Lock className="size-3" /><span className="hidden sm:inline">Desativado</span></span>}
                     {bloqueado && <span className="flex items-center gap-1 text-[0.6rem] text-sangue-claro sm:text-xs"><Ban className="size-3" /><span className="hidden sm:inline">Impedimento</span></span>}
                   </button>
                 );
@@ -117,13 +153,16 @@ export function CalendarioColaborativo({ campanhas, sessoes, setSessoes, impedim
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start">
             <div className="min-w-0 flex-1">
               {sel && <DetalhesDia dia={sel} sessoes={doDia(sel)} campanha={campanha} visao={visao} responder={responder} />}
-              {!sel && <p className="m-0 text-base text-texto/60">{mestre ? "Clique em um dia para ver ou marcar sessões." : `Você está vendo o calendário de ${nomeJogador(visao)}. Clique em um dia com convite para responder.`}</p>}
+              {!sel && <p className="m-0 text-base text-texto/60">{mestre ? "Clique em um dia para ver ou marcar sessões. Clique no nome de um dia da semana para desativar ou reativar todos eles." : `Você está vendo o calendário de ${nomeJogador(visao)}. Clique em um dia com convite para responder.`}</p>}
             </div>
             {mestre && (
               <div className="flex shrink-0 flex-col items-end gap-2">
                 <div className="flex flex-wrap justify-end gap-2">
-                  <BotaoOuro variant="outline" className="h-10 text-sm" onClick={exigirDia(() =>
-                    setImpedimentos((l) => l.includes(sel!) ? l.filter((d) => d !== sel) : [...l, sel!]))}>
+                  {sel && desativado(sel) && !passado(sel)
+                    ? <BotaoOuro variant="outline" className="h-10 text-sm" onClick={exigirDia(ativar, true)}><CalendarCheck /> Ativar</BotaoOuro>
+                    : <BotaoOuro variant="outline" className="h-10 text-sm" onClick={exigirDia(desativar)}><CalendarX /> Desativar</BotaoOuro>}
+                  <BotaoOuro variant="outline" className="h-10 text-sm" onClick={exigirDia((k) =>
+                    setImpedimentos((l) => l.includes(k) ? l.filter((d) => d !== k) : [...l, k]))}>
                     <Ban /> {sel && impedimentos.includes(sel) ? "Remover impedimento" : "Adicionar impedimento"}
                   </BotaoOuro>
                   <BotaoOuro className="h-10 text-sm" onClick={exigirDia(() => setMarcar(true))}><CalendarPlus /> Marcar sessão</BotaoOuro>
